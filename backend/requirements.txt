@@ -1,0 +1,30 @@
+# 智慧图书馆管理系统 - Python 依赖
+# Flask 核心
+flask==3.0.0
+flask-cors==4.0.0
+flask-sqlalchemy==3.1.1
+
+# 数据库
+pymysql==1.1.0
+
+# 认证
+pyjwt==2.8.0
+werkzeug==3.0.1
+
+# 验证码
+pillow==10.1.0
+
+# Excel
+openpyxl==3.1.2
+
+# 定时任务
+apscheduler==3.10.4
+
+# 实时通知
+flask-socketio==5.3.6
+
+# AI (DeepSeek - openai 兼容模式)
+openai==1.6.1
+
+# 异步支持
+eventlet==0.34.3

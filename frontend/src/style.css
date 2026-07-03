@@ -1,0 +1,178 @@
+:root {
+  font-family:
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC",
+    sans-serif;
+  color: #1f2937;
+  background: #f7f9fc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --library-primary: #3366ff;
+  --library-sidebar: #111827;
+  --library-surface: #ffffff;
+  --library-background: #f7f9fc;
+  --library-text: #111827;
+  --library-muted: #718096;
+  --library-border: #e1e7ef;
+  --library-success: #059669;
+  --library-warning: #d97706;
+  --library-danger: #dc2626;
+  --library-radius: 16px;
+  --library-control-radius: 10px;
+  --library-page-gap: 24px;
+  --library-card-shadow: 0 2px 6px rgba(20, 35, 60, 0.04);
+
+  /* Student pages use these semantic aliases instead of redefining colors. */
+  --brand-blue: var(--library-primary);
+  --border-color: var(--library-border);
+  --text-main: var(--library-text);
+  --text-muted: var(--library-muted);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  min-width: 1080px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--library-text);
+  background: var(--library-background);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.student-shell .el-card {
+  border-color: var(--library-border);
+  border-radius: var(--library-radius);
+  box-shadow: var(--library-card-shadow);
+}
+
+.student-shell .el-button {
+  border-radius: var(--library-control-radius) !important;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.student-shell .el-button--primary:not(.is-link) {
+  border-color: var(--library-primary);
+  background: var(--library-primary);
+}
+
+.student-shell .el-input__wrapper,
+.student-shell .el-select__wrapper,
+.student-shell .el-textarea__inner {
+  border-radius: 12px;
+}
+
+.student-shell .el-table {
+  --el-table-border-color: #e8edf4;
+  --el-table-header-bg-color: #fbfcfe;
+  --el-table-row-hover-bg-color: #f1f6ff;
+  --el-table-header-text-color: var(--library-muted);
+  --el-table-text-color: #52627a;
+  color: #344054;
+  font-size: 14px;
+}
+
+.student-shell .el-table__inner-wrapper::before {
+  display: none;
+}
+
+.student-shell .el-table th.el-table__cell {
+  height: 58px;
+  padding: 0;
+  color: var(--library-muted);
+  background: #fbfcfe;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.student-shell .el-table td.el-table__cell {
+  height: 68px;
+  padding: 0;
+  color: #52627a;
+  font-size: 14px;
+}
+
+.student-shell .el-table__row:hover > td.el-table__cell {
+  background: #f1f6ff !important;
+}
+
+.student-shell .el-table .cell {
+  padding: 0 24px;
+  line-height: 1.45;
+}
+
+.student-shell .el-tag {
+  min-height: 26px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.student-shell .student-tabs > .el-tabs__header .el-tabs__item {
+  height: 58px;
+  padding: 0 8px;
+  margin-right: 28px;
+  color: #7c8799;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.student-shell .student-tabs > .el-tabs__header .el-tabs__item:hover,
+.student-shell .student-tabs > .el-tabs__header .el-tabs__item.is-active {
+  color: var(--library-primary);
+}
+
+.student-shell .student-tabs > .el-tabs__header .el-tabs__active-bar {
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--library-primary);
+}
+
+.student-shell .el-pagination.is-background .el-pager li,
+.student-shell .el-pagination.is-background .btn-prev,
+.student-shell .el-pagination.is-background .btn-next {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  line-height: 34px;
+}
+
+.student-shell .el-pagination.is-background .el-pager li.is-active {
+  background: var(--library-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
