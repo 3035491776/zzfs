@@ -18,6 +18,7 @@
 
     <div class="login-card">
       <h1 class="login-title">智慧图书馆管理系统</h1>
+      <p class="login-welcome">欢迎回来，请登录您的账号</p>
       <p class="login-subtitle">Smart Library Management System</p>
 
       <el-tabs v-model="activeTab" class="login-tabs">
@@ -84,12 +85,12 @@ const floatingBooks = [
   { title: '算法导论', author: 'Thomas H. Cormen', category: '计算机科学', depth: 'near' },
   { title: '人工智能：一种现代方法', author: 'Stuart Russell', category: '计算机科学', depth: 'far' },
   { title: '计算机网络', author: 'Andrew S. Tanenbaum', category: '计算机科学', depth: 'mid' },
-  { title: '数据结构与算法分析', author: 'Mark Allen Weiss', category: '计算机科学', depth: 'far' },
-  { title: 'Python编程：从入门到实践', author: 'Eric Matthes', category: '计算机科学', depth: 'mid' },
+  { title: '枪炮、病菌与钢铁', author: '贾雷德·戴蒙德', category: '历史', depth: 'far' },
+  { title: '原则', author: '瑞·达利欧', category: '经济', depth: 'mid' },
   { title: '红楼梦', author: '曹雪芹', category: '文学', depth: 'near' },
-  { title: '活着', author: '余华', category: '文学', depth: 'far' },
+  { title: '活着', author: '余华', category: '文学', depth: 'mid' },
   { title: '百年孤独', author: '加西亚·马尔克斯', category: '文学', depth: 'mid' },
-  { title: '平凡的世界', author: '路遥', category: '文学', depth: 'far' },
+  { title: '苏菲的世界', author: '乔斯坦·贾德', category: '哲学', depth: 'far' },
   { title: '三体', author: '刘慈欣', category: '文学', depth: 'near' },
   { title: '史记', author: '司马迁', category: '历史', depth: 'mid' },
   { title: '万历十五年', author: '黄仁宇', category: '历史', depth: 'far' },
@@ -98,7 +99,7 @@ const floatingBooks = [
   { title: '经济学原理', author: '曼昆', category: '经济', depth: 'far' },
   { title: '理想国', author: '柏拉图', category: '哲学', depth: 'mid' },
   { title: '时间简史', author: '斯蒂芬·霍金', category: '自然科学', depth: 'far' },
-  { title: '自私的基因', author: '理查德·道金斯', category: '自然科学', depth: 'near' },
+  { title: '自私的基因', author: '理查德·道金斯', category: '自然科学', depth: 'mid' },
 ]
 
 const loginForm = reactive({ username: '', password: '' })
@@ -203,8 +204,10 @@ async function handleSmsLogin() {
   z-index: -1;
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.92) 0, rgba(255, 255, 255, 0) 30%),
-    radial-gradient(circle at 84% 76%, rgba(202, 219, 255, 0.45) 0, rgba(202, 219, 255, 0) 34%),
+    radial-gradient(circle at 17% 14%, rgba(255, 255, 255, 0.94) 0, rgba(255, 255, 255, 0) 28%),
+    radial-gradient(circle at 86% 78%, rgba(199, 217, 255, 0.44) 0, rgba(199, 217, 255, 0) 32%),
+    radial-gradient(circle at 62% 30%, rgba(255, 255, 255, 0.42) 0 1px, rgba(255, 255, 255, 0) 2px) 0 0 / 24px 24px,
+    linear-gradient(112deg, rgba(255, 255, 255, 0.22), rgba(224, 234, 252, 0.08) 48%, rgba(255, 255, 255, 0.2)),
     linear-gradient(180deg, #fafbfc 0%, #eef4ff 48%, #e4edff 100%);
 }
 
@@ -321,62 +324,83 @@ async function handleSmsLogin() {
 
 .book--near {
   z-index: 3;
-  opacity: 0.88;
-  filter: blur(0);
+  --lift: -14px;
+  --right-start: -24px;
+  --right-mid: 28px;
+  --right-end: 82px;
+  --left-start: 48px;
+  --left-mid: -18px;
+  --left-end: -82px;
+  opacity: 0.84;
+  filter: blur(0.3px);
 }
 
 .book--mid {
   z-index: 2;
-  opacity: 0.58;
-  filter: blur(1.5px);
+  --lift: -8px;
+  --right-start: -18px;
+  --right-mid: 24px;
+  --right-end: 60px;
+  --left-start: 38px;
+  --left-mid: -14px;
+  --left-end: -60px;
+  opacity: 0.56;
+  filter: blur(1.2px);
 }
 
 .book--far {
   z-index: 1;
+  --lift: -4px;
+  --right-start: -12px;
+  --right-mid: 18px;
+  --right-end: 44px;
+  --left-start: 28px;
+  --left-mid: -10px;
+  --left-end: -44px;
   opacity: 0.3;
   filter: blur(4px);
 }
 
-.book--1  { --top: 7%;  --left: -2%; --book-width: 124px; --tilt: -5deg; --duration: 48s; --delay: -18s; --cover: #4778bd; --cover-deep: #315d9c; }
-.book--2  { --top: 2%;  --left: 16%; --book-width: 88px;  --tilt: 4deg;  --duration: 56s; --delay: -9s;  --cover: #bf8b55; --cover-deep: #9b6840; }
-.book--3  { --top: 13%; --left: 77%; --book-width: 105px; --tilt: 6deg;  --duration: 42s; --delay: -31s; --cover: #3f8f8a; --cover-deep: #286a68; }
-.book--4  { --top: 5%;  --left: 91%; --book-width: 82px;  --tilt: -3deg; --duration: 58s; --delay: -22s; --cover: #b9a56c; --cover-deep: #8f7c49; }
-.book--5  { --top: 37%; --left: 5%;  --book-width: 96px;  --tilt: 7deg;  --duration: 38s; --delay: -13s; --cover: #ba6b52; --cover-deep: #914c3b; }
-.book--6  { --top: 65%; --left: -1%; --book-width: 132px; --tilt: 3deg;  --duration: 52s; --delay: -40s; --cover: #8e3f4c; --cover-deep: #672b37; }
-.book--7  { --top: 76%; --left: 17%; --book-width: 84px;  --tilt: -7deg; --duration: 44s; --delay: -29s; --cover: #5e8b60; --cover-deep: #416c46; }
-.book--8  { --top: 46%; --left: 23%; --book-width: 102px; --tilt: -4deg; --duration: 34s; --delay: -7s;  --cover: #d38a54; --cover-deep: #aa6337; }
-.book--9  { --top: 15%; --left: 33%; --book-width: 78px;  --tilt: 5deg;  --duration: 57s; --delay: -36s; --cover: #7689a6; --cover-deep: #536982; }
-.book--10 { --top: 72%; --left: 37%; --book-width: 118px; --tilt: -6deg; --duration: 46s; --delay: -15s; --cover: #315f82; --cover-deep: #24465f; }
-.book--11 { --top: 3%;  --left: 51%; --book-width: 100px; --tilt: 3deg;  --duration: 39s; --delay: -24s; --cover: #6f7653; --cover-deep: #50563a; }
-.book--12 { --top: 77%; --left: 54%; --book-width: 86px;  --tilt: 8deg;  --duration: 55s; --delay: -46s; --cover: #a45c64; --cover-deep: #7d3f47; }
-.book--13 { --top: 38%; --left: 68%; --book-width: 108px; --tilt: -5deg; --duration: 36s; --delay: -20s; --cover: #4f8873; --cover-deep: #35634f; }
-.book--14 { --top: 62%; --left: 82%; --book-width: 126px; --tilt: 5deg;  --duration: 49s; --delay: -33s; --cover: #ad7548; --cover-deep: #855531; }
-.book--15 { --top: 43%; --left: 93%; --book-width: 80px;  --tilt: -8deg; --duration: 58s; --delay: -17s; --cover: #7894a1; --cover-deep: #546f7a; }
-.book--16 { --top: 82%; --left: 69%; --book-width: 98px;  --tilt: 4deg;  --duration: 41s; --delay: -28s; --cover: #9a8351; --cover-deep: #725e37; }
-.book--17 { --top: 27%; --left: 42%; --book-width: 76px;  --tilt: -3deg; --duration: 53s; --delay: -38s; --cover: #5574a0; --cover-deep: #394f73; }
-.book--18 { --top: 28%; --left: 57%; --book-width: 116px; --tilt: 6deg;  --duration: 43s; --delay: -11s; --cover: #3a827d; --cover-deep: #275e5b; }
+.book--1  { --top: 7%;  --left: 6%;  --book-width: 126px; --tilt: -5deg; --duration: 34s; --delay: -18s; --cover: #4778bd; --cover-deep: #315d9c; }
+.book--2  { --top: 4%;  --left: 23%; --book-width: 66px;  --tilt: 4deg;  --duration: 50s; --delay: -9s;  --cover: #bf8b55; --cover-deep: #9b6840; }
+.book--3  { --top: 29%; --left: 71%; --book-width: 94px;  --tilt: 6deg;  --duration: 40s; --delay: -31s; --cover: #3f8f8a; --cover-deep: #286a68; }
+.book--4  { --top: 5%;  --left: 91%; --book-width: 64px;  --tilt: -3deg; --duration: 48s; --delay: -22s; --cover: #b9a56c; --cover-deep: #8f7c49; }
+.book--5  { --top: 35%; --left: 7%;  --book-width: 98px;  --tilt: 7deg;  --duration: 42s; --delay: -13s; --cover: #ba6b52; --cover-deep: #914c3b; }
+.book--6  { --top: 67%; --left: 8%;  --book-width: 128px; --tilt: 3deg;  --duration: 36s; --delay: -40s; --cover: #8e3f4c; --cover-deep: #672b37; }
+.book--7  { --top: 74%; --left: 19%; --book-width: 92px;  --tilt: -7deg; --duration: 38s; --delay: -29s; --cover: #5e8b60; --cover-deep: #416c46; }
+.book--8  { --top: 47%; --left: 21%; --book-width: 96px;  --tilt: -4deg; --duration: 41s; --delay: -7s;  --cover: #d38a54; --cover-deep: #aa6337; }
+.book--9  { --top: 19%; --left: 23%; --book-width: 62px;  --tilt: 5deg;  --duration: 52s; --delay: -36s; --cover: #7689a6; --cover-deep: #536982; }
+.book--10 { --top: 7%;  --left: 78%; --book-width: 124px; --tilt: -6deg; --duration: 32s; --delay: -15s; --cover: #315f82; --cover-deep: #24465f; }
+.book--11 { --top: 3%;  --left: 19%; --book-width: 92px;  --tilt: 3deg;  --duration: 37s; --delay: -24s; --cover: #6f7653; --cover-deep: #50563a; }
+.book--12 { --top: 80%; --left: 75%; --book-width: 68px;  --tilt: 8deg;  --duration: 49s; --delay: -46s; --cover: #a45c64; --cover-deep: #7d3f47; }
+.book--13 { --top: 39%; --left: 72%; --book-width: 96px;  --tilt: -5deg; --duration: 44s; --delay: -20s; --cover: #4f8873; --cover-deep: #35634f; }
+.book--14 { --top: 64%; --left: 84%; --book-width: 128px; --tilt: 5deg;  --duration: 35s; --delay: -33s; --cover: #ad7548; --cover-deep: #855531; }
+.book--15 { --top: 43%; --left: 88%; --book-width: 64px;  --tilt: -8deg; --duration: 51s; --delay: -17s; --cover: #7894a1; --cover-deep: #546f7a; }
+.book--16 { --top: 78%; --left: 75%; --book-width: 94px;  --tilt: 4deg;  --duration: 39s; --delay: -28s; --cover: #9a8351; --cover-deep: #725e37; }
+.book--17 { --top: 40%; --left: 5%;  --book-width: 66px;  --tilt: -3deg; --duration: 47s; --delay: -38s; --cover: #5574a0; --cover-deep: #394f73; }
+.book--18 { --top: 23%; --left: 82%; --book-width: 98px;  --tilt: 6deg;  --duration: 43s; --delay: -11s; --cover: #3a827d; --cover-deep: #275e5b; }
 
 @keyframes drift-right {
   0% {
-    transform: translate3d(-6vw, 0, 0) rotate(var(--tilt));
+    transform: translate3d(var(--right-start), 2px, 0) rotate(var(--tilt));
   }
-  52% {
-    transform: translate3d(3vw, -10px, 0) rotate(var(--tilt));
+  43% {
+    transform: translate3d(var(--right-mid), var(--lift), 0) rotate(var(--tilt));
   }
   100% {
-    transform: translate3d(10vw, 3px, 0) rotate(var(--tilt));
+    transform: translate3d(var(--right-end), 5px, 0) rotate(var(--tilt));
   }
 }
 
 @keyframes drift-left {
   0% {
-    transform: translate3d(8vw, 2px, 0) rotate(var(--tilt));
+    transform: translate3d(var(--left-start), 4px, 0) rotate(var(--tilt));
   }
-  48% {
-    transform: translate3d(-2vw, -8px, 0) rotate(var(--tilt));
+  54% {
+    transform: translate3d(var(--left-mid), var(--lift), 0) rotate(var(--tilt));
   }
   100% {
-    transform: translate3d(-9vw, 0, 0) rotate(var(--tilt));
+    transform: translate3d(var(--left-end), 0, 0) rotate(var(--tilt));
   }
 }
 
@@ -389,13 +413,13 @@ async function handleSmsLogin() {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow:
-    0 28px 70px rgba(76, 101, 144, 0.15),
-    0 8px 24px rgba(76, 101, 144, 0.08);
+    0 24px 60px rgba(76, 101, 144, 0.12),
+    0 6px 18px rgba(76, 101, 144, 0.06);
   backdrop-filter: blur(18px);
 }
 
 .login-title {
-  margin: 0 0 8px;
+  margin: 0;
   color: #1f2d42;
   font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
   font-size: 24px;
@@ -404,11 +428,19 @@ async function handleSmsLogin() {
   text-align: center;
 }
 
+.login-welcome {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .login-subtitle {
-  margin: 0 0 30px;
+  margin: 5px 0 26px;
   color: #7b8ba3;
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.1em;
   text-align: center;
 }
 
@@ -475,12 +507,12 @@ async function handleSmsLogin() {
 .login-card :deep(.el-button--primary:not(.is-link)),
 .login-card :deep(.el-button--success) {
   min-height: 46px;
-  border-color: #356ee6;
+  border-color: #3366ff;
   border-radius: 12px;
-  background: #356ee6;
+  background: #3366ff;
   font-weight: 700;
   letter-spacing: 0.16em;
-  box-shadow: 0 8px 20px rgba(53, 110, 230, 0.2);
+  box-shadow: 0 5px 14px rgba(51, 102, 255, 0.14);
   transition:
     background 180ms ease,
     border-color 180ms ease,
@@ -491,7 +523,7 @@ async function handleSmsLogin() {
 .login-card :deep(.el-button--success:hover) {
   border-color: #2d62ce;
   background: #2d62ce;
-  box-shadow: 0 10px 24px rgba(53, 110, 230, 0.26);
+  box-shadow: 0 7px 17px rgba(51, 102, 255, 0.18);
 }
 
 .login-footer {
@@ -520,7 +552,15 @@ async function handleSmsLogin() {
   }
 
   .floating-book {
-    --book-width: 78px;
+    --book-width: 68px;
+  }
+
+  .book-field .book--near {
+    --book-width: 86px;
+  }
+
+  .book-field .book--far {
+    --book-width: 54px;
   }
 
   .book--2,
@@ -530,6 +570,17 @@ async function handleSmsLogin() {
   .book--12,
   .book--15,
   .book--17 {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .book--2,
+  .book--8,
+  .book--9,
+  .book--11,
+  .book--12,
+  .book--16 {
     display: none;
   }
 }
