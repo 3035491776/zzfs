@@ -94,7 +94,7 @@
                 <el-tag :type="row.status==='approved'?'success':row.status==='rejected'?'danger':'warning'" size="small">{{row.status_text}}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column label="操作" width="200">
               <template #default="{ row }">
                 <template v-if="row.status==='pending'">
                   <el-button size="small" type="success" @click="handleApprove(row)">采纳</el-button>
