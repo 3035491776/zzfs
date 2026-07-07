@@ -2,8 +2,12 @@
 """智慧图书馆管理系统 - 配置文件"""
 
 import os
+from dotenv import load_dotenv
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
 
 class Config:
@@ -56,6 +60,10 @@ class Config:
 
     # DeepSeek AI
     DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+    DEEPSEEK_MODEL = os.environ.get(
+        'DEEPSEEK_MODEL',
+        'deepseek-v4-flash'
+    )
     DEEPSEEK_BASE_URL = 'https://api.deepseek.com'
 
     # 百度地图
