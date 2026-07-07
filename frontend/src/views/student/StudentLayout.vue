@@ -15,8 +15,8 @@
         class="student-menu"
         :default-active="activeMenu"
         background-color="transparent"
-        text-color="#94A3B8"
-        active-text-color="#FFFFFF"
+        text-color="#607086"
+        active-text-color="#243B66"
         router
       >
         <el-menu-item index="/student/books">
