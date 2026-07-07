@@ -1,5 +1,45 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+const userPageRoutes = [
+  { key: 'books', path: 'books', component: () => import('../views/student/BookBrowse.vue'), title: '图书浏览' },
+  { key: 'myBorrows', path: 'my-borrows', component: () => import('../views/student/MyBorrows.vue'), title: '我的借阅' },
+  { key: 'seatReserve', path: 'seat-reserve', component: () => import('../views/student/SeatReserve.vue'), title: '自习室预约' },
+  { key: 'aiAssistant', path: 'ai-assistant', component: () => import('../views/student/AIAssistant.vue'), title: 'AI助手' },
+  { key: 'libraryMap', path: 'library-map', component: () => import('../views/student/LibraryMap.vue'), title: '图书馆地图' },
+  { key: 'notifications', path: 'notifications', component: () => import('../views/student/Notifications.vue'), title: '消息通知' },
+  { key: 'profile', path: 'profile', component: () => import('../views/Profile.vue'), title: '个人中心' },
+]
+
+const userRouteNames = {
+  student: {
+    books: 'StudentBooks',
+    myBorrows: 'StudentBorrows',
+    seatReserve: 'SeatReserve',
+    aiAssistant: 'AIAssistant',
+    libraryMap: 'LibraryMap',
+    notifications: 'Notifications',
+    profile: 'StudentProfile',
+  },
+  teacher: {
+    books: 'TeacherBooks',
+    myBorrows: 'TeacherBorrows',
+    seatReserve: 'TeacherSeatReserve',
+    aiAssistant: 'TeacherAIAssistant',
+    libraryMap: 'TeacherLibraryMap',
+    notifications: 'TeacherNotifications',
+    profile: 'TeacherProfile',
+  },
+}
+
+function createUserChildren(role) {
+  return userPageRoutes.map(route => ({
+    path: route.path,
+    name: userRouteNames[role][route.key],
+    component: route.component,
+    meta: { title: route.title },
+  }))
+}
+
 const routes = [
   // 通用页面
   {
@@ -37,35 +77,19 @@ const routes = [
   // 教师端
   {
     path: '/teacher',
-    component: () => import('../views/teacher/TeacherLayout.vue'),
+    component: () => import('../views/user/UserLayout.vue'),
     meta: { requiresAuth: true, role: 'teacher' },
     redirect: '/teacher/books',
-    children: [
-      { path: 'books', name: 'TeacherBooks', component: () => import('../views/student/BookBrowse.vue'), meta: { title: '图书浏览' } },
-      { path: 'my-borrows', name: 'TeacherBorrows', component: () => import('../views/student/MyBorrows.vue'), meta: { title: '我的借阅' } },
-      { path: 'seat-reserve', name: 'TeacherSeatReserve', component: () => import('../views/student/SeatReserve.vue'), meta: { title: '自习室预约' } },
-      { path: 'ai-assistant', name: 'TeacherAIAssistant', component: () => import('../views/student/AIAssistant.vue'), meta: { title: 'AI助手' } },
-      { path: 'library-map', name: 'TeacherLibraryMap', component: () => import('../views/student/LibraryMap.vue'), meta: { title: '图书馆地图' } },
-      { path: 'notifications', name: 'TeacherNotifications', component: () => import('../views/student/Notifications.vue'), meta: { title: '消息通知' } },
-      { path: 'profile', name: 'TeacherProfile', component: () => import('../views/Profile.vue'), meta: { title: '个人中心' } },
-    ],
+    children: createUserChildren('teacher'),
   },
 
   // 学生端
   {
     path: '/student',
-    component: () => import('../views/student/StudentLayout.vue'),
+    component: () => import('../views/user/UserLayout.vue'),
     meta: { requiresAuth: true, role: 'student' },
     redirect: '/student/books',
-    children: [
-      { path: 'books', name: 'StudentBooks', component: () => import('../views/student/BookBrowse.vue'), meta: { title: '图书浏览' } },
-      { path: 'my-borrows', name: 'StudentBorrows', component: () => import('../views/student/MyBorrows.vue'), meta: { title: '我的借阅' } },
-      { path: 'seat-reserve', name: 'SeatReserve', component: () => import('../views/student/SeatReserve.vue'), meta: { title: '自习室预约' } },
-      { path: 'ai-assistant', name: 'AIAssistant', component: () => import('../views/student/AIAssistant.vue'), meta: { title: 'AI助手' } },
-      { path: 'library-map', name: 'LibraryMap', component: () => import('../views/student/LibraryMap.vue'), meta: { title: '图书馆地图' } },
-      { path: 'notifications', name: 'Notifications', component: () => import('../views/student/Notifications.vue'), meta: { title: '消息通知' } },
-      { path: 'profile', name: 'StudentProfile', component: () => import('../views/Profile.vue'), meta: { title: '个人中心' } },
-    ],
+    children: createUserChildren('student'),
   },
 
   // 默认跳转
