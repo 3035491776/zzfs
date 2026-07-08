@@ -41,6 +41,13 @@ function createUserChildren(role) {
 }
 
 const routes = [
+  {
+    path: '/',
+    name: 'Landing',
+    component: () => import('../views/Landing.vue'),
+    meta: { title: '首页', noAuth: true },
+  },
+
   // 通用页面
   {
     path: '/login',
@@ -93,10 +100,6 @@ const routes = [
   },
 
   // 默认跳转
-  {
-    path: '/',
-    redirect: '/login',
-  },
   {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
