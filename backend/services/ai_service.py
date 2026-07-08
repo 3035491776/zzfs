@@ -59,21 +59,22 @@ def _call_deepseek(messages, stream=False):
     """
     import openai
 
-    api_key = current_app.config.get('DEEPSEEK_API_KEY', 'your-deepseek-api-key')
+    api_key = current_app.config.get('DEEPSEEK_API_KEY', '')
     base_url = current_app.config.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+    model = current_app.config.get('DEEPSEEK_MODEL', 'deepseek-v4-flash')
 
     client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
     if stream:
         response = client.chat.completions.create(
-            model='deepseek-chat',
+            model=model,
             messages=messages,
             stream=True,
         )
         return response  # 返回流对象
     else:
         response = client.chat.completions.create(
-            model='deepseek-chat',
+            model=model,
             messages=messages,
             temperature=0.7,
             max_tokens=2000,
