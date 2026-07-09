@@ -23,6 +23,10 @@
           <el-icon><DataAnalysis /></el-icon>
           <span>数据大屏</span>
         </el-menu-item>
+        <el-menu-item index="/admin/monthly-report">
+          <el-icon><TrendCharts /></el-icon>
+          <span>月度报告</span>
+        </el-menu-item>
         <el-menu-item index="/admin/books">
           <div class="menu-item-row">
             <span class="menu-item-left">

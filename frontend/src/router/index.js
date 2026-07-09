@@ -70,6 +70,7 @@ const routes = [
     redirect: '/admin/dashboard',
     children: [
       { path: 'dashboard', name: 'AdminDashboard', component: () => import('../views/admin/Dashboard.vue'), meta: { title: '数据大屏' } },
+      { path: 'monthly-report', name: 'MonthlyReport', component: () => import('../views/admin/MonthlyReport.vue'), meta: { title: '月度报告' } },
       { path: 'books', name: 'BookManage', component: () => import('../views/admin/BookManage.vue'), meta: { title: '图书管理' } },
       { path: 'categories', name: 'CategoryManage', component: () => import('../views/admin/CategoryManage.vue'), meta: { title: '分类管理' } },
       { path: 'borrow-review', name: 'BorrowReview', component: () => import('../views/admin/BorrowReview.vue'), meta: { title: '借阅审核' } },
