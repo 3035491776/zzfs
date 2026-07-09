@@ -1,11 +1,13 @@
 <template>
-  <div class="monthly-report-page">
+  <div v-loading="loading" class="monthly-report-page">
     <el-card shadow="never" class="report-toolbar">
       <div class="toolbar-copy">
-        <el-tag type="info" effect="plain">前端预览版</el-tag>
+        <el-tag :type="isFallbackData ? 'warning' : 'success'" effect="plain">
+          {{ isFallbackData ? '演示数据' : '真实数据' }}
+        </el-tag>
         <div>
           <h2>月度运营报告</h2>
-          <p>使用 mock 数据预览图书馆上月运营情况，暂未接入后端与真实 AI。</p>
+          <p>{{ toolbarDescription }}</p>
         </div>
       </div>
 
@@ -18,19 +20,19 @@
           :clearable="false"
           class="month-picker"
         />
-        <el-button type="primary" @click="generateReport">
+        <el-button type="primary" :loading="loading" @click="generateReport">
           <el-icon><DataAnalysis /></el-icon>
           <span>生成报告</span>
         </el-button>
-        <el-button class="export-button" disabled>
+        <el-button class="export-button" disabled title="导出功能暂未开放，当前仅为前端占位">
           <el-icon><Download /></el-icon>
-          <span>导出报告</span>
+          <span>导出报告（占位）</span>
         </el-button>
       </div>
     </el-card>
 
     <el-row :gutter="16" class="stat-grid">
-      <el-col v-for="(card, index) in statCards" :key="card.label" :span="6">
+      <el-col v-for="(card, index) in statCards" :key="card.label" :span="statCardSpan">
         <el-card shadow="never" class="stat-card">
           <div class="stat-card__top">
             <span class="stat-index">0{{ index + 1 }}</span>
@@ -56,7 +58,7 @@
             </div>
           </template>
 
-          <el-table :data="popularBooks" stripe class="report-table" height="420">
+          <el-table :data="popularBooks" stripe class="report-table" height="420" empty-text="暂无热门图书数据">
             <el-table-column type="index" label="#" width="64" />
             <el-table-column prop="title" label="图书" min-width="180">
               <template #default="{ row }">
@@ -71,7 +73,7 @@
                 <el-tag effect="plain">{{ row.category }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="borrows" label="借阅" width="100" />
+            <el-table-column prop="borrow_count" label="借阅" width="100" />
             <el-table-column prop="stock" label="库存" width="90" />
             <el-table-column label="状态" width="110">
               <template #default="{ row }">
@@ -114,7 +116,8 @@
             </div>
           </template>
 
-          <div class="risk-list">
+          <el-empty v-if="stockRiskBooks.length === 0" description="暂无断货风险图书" />
+          <div v-else class="risk-list">
             <div v-for="book in stockRiskBooks" :key="book.title" class="risk-item">
               <div>
                 <strong>{{ book.title }}</strong>
@@ -145,19 +148,19 @@
             <div class="seat-insights">
               <section>
                 <span>热门座位</span>
-                <strong>B201-01、B201-02</strong>
+                <strong>{{ seatInsight.hotSeats }}</strong>
               </section>
               <section>
                 <span>热门自习室</span>
-                <strong>B201 自习室</strong>
+                <strong>{{ seatInsight.hotRooms }}</strong>
               </section>
               <section>
                 <span>高峰时段</span>
-                <strong>19:00 - 21:00</strong>
+                <strong>{{ seatInsight.peakHours }}</strong>
               </section>
               <section>
                 <span>功能偏好</span>
-                <strong>带电源座位预约占比 68%</strong>
+                <strong>{{ seatInsight.featurePreference }}</strong>
               </section>
             </div>
           </div>
@@ -197,14 +200,14 @@
             <div class="panel-heading">
               <div>
                 <h3>AI 运营建议</h3>
-                <p>当前为 mock 文本，暂未调用真实 AI。</p>
+                <p>当前为前端占位建议，暂未调用真实 AI。</p>
               </div>
               <span class="panel-mark">AI</span>
             </div>
           </template>
 
           <div class="ai-summary">
-            <el-tag type="warning" effect="light">Mock 建议</el-tag>
+            <el-tag type="warning" effect="light">占位建议</el-tag>
             <p v-for="tip in aiSuggestions" :key="tip">{{ tip }}</p>
           </div>
         </el-card>
@@ -214,56 +217,134 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
+import { reportApi } from '../../api/report'
 
-const selectedMonth = ref('2026-06')
+const selectedMonth = ref(getPreviousMonth())
+const loading = ref(false)
+const reportData = ref(createEmptyReport(selectedMonth.value))
 const categoryChartRef = ref(null)
 const seatChartRef = ref(null)
 const userChartRef = ref(null)
 const chartInstances = []
 
-const statCards = [
-  { label: '上月借阅总数', value: '1,286', trend: '环比 +12%', tagType: 'success', note: '计算机与人工智能类增长明显' },
-  { label: '活跃用户', value: '842', trend: '活跃', tagType: 'primary', note: '学生 706 人，教师 136 人' },
-  { label: '座位预约', value: '2,418', trend: '高峰稳定', tagType: 'warning', note: '晚间预约占比最高' },
-  { label: '逾期数量', value: '37', trend: '需跟进', tagType: 'danger', note: '较上月减少 9 本' },
-]
+const isFallbackData = computed(() => reportData.value.is_mock === true)
+const coreStats = computed(() => reportData.value.core_stats || {})
+const bookAnalysis = computed(() => reportData.value.book_analysis || {})
+const seatAnalysis = computed(() => reportData.value.seat_analysis || {})
+const userBehavior = computed(() => reportData.value.user_behavior || {})
 
-const popularBooks = [
-  { title: '《算法导论》', author: 'Thomas H. Cormen', category: '计算机', borrows: 96, stock: 2 },
-  { title: '《人工智能》', author: 'Stuart Russell', category: '人工智能', borrows: 88, stock: 3 },
-  { title: '《计算机网络》', author: '谢希仁', category: '计算机', borrows: 83, stock: 4 },
-  { title: '《数据库系统概念》', author: 'Abraham Silberschatz', category: '数据库', borrows: 76, stock: 2 },
-  { title: '《深入理解计算机系统》', author: 'Randal E. Bryant', category: '计算机', borrows: 71, stock: 5 },
-  { title: '《机器学习》', author: '周志华', category: '人工智能', borrows: 69, stock: 3 },
-  { title: '《现代操作系统》', author: 'Andrew S. Tanenbaum', category: '操作系统', borrows: 64, stock: 4 },
-  { title: '《软件工程》', author: 'Ian Sommerville', category: '软件工程', borrows: 58, stock: 6 },
-  { title: '《Python 编程》', author: 'Eric Matthes', category: '编程语言', borrows: 53, stock: 3 },
-  { title: '《数据结构》', author: '严蔚敏', category: '计算机', borrows: 49, stock: 7 },
-]
+const toolbarDescription = computed(() => {
+  if (isFallbackData.value) {
+    return '接口请求失败，当前显示 devFallbackMock 演示数据；暂未接入真实 AI 与导出功能。'
+  }
+  return `${reportData.value.range?.start || selectedMonth.value} 至 ${reportData.value.range?.end || selectedMonth.value} 的真实数据库统计；暂未接入真实 AI 与导出功能。`
+})
 
-const stockRiskBooks = [
-  { title: '《算法导论》', stock: 2, reason: '借阅 96 次，预约排队 14 人' },
-  { title: '《数据库系统概念》', stock: 2, reason: '借阅 76 次，课程周需求上升' },
-  { title: '《机器学习》', stock: 3, reason: 'AI 方向持续热门，库存偏紧' },
-]
+const statCards = computed(() => [
+  {
+    label: '上月借阅总数',
+    value: formatNumber(coreStats.value.borrow_count),
+    trend: hasValue(coreStats.value.borrow_count) ? '真实统计' : '暂无数据',
+    tagType: hasValue(coreStats.value.borrow_count) ? 'success' : 'info',
+    note: '按借阅审核通过时间统计',
+  },
+  {
+    label: '活跃用户',
+    value: formatNumber(coreStats.value.active_user_count),
+    trend: '去重用户',
+    tagType: 'primary',
+    note: '借阅、预约、荐购用户去重',
+  },
+  {
+    label: '座位预约',
+    value: formatNumber(coreStats.value.reservation_count),
+    trend: hasValue(coreStats.value.reservation_count) ? '真实统计' : '暂无数据',
+    tagType: hasValue(coreStats.value.reservation_count) ? 'warning' : 'info',
+    note: '按预约日期统计有效预约',
+  },
+  {
+    label: '逾期数量',
+    value: formatNumber(coreStats.value.overdue_count),
+    trend: hasValue(coreStats.value.overdue_count) ? '需跟进' : '暂无逾期',
+    tagType: hasValue(coreStats.value.overdue_count) ? 'danger' : 'success',
+    note: '按到期时间落在当月统计',
+  },
+  {
+    label: '荐购数量',
+    value: formatNumber(coreStats.value.book_request_count),
+    trend: hasValue(coreStats.value.book_request_count) ? '有需求' : '暂无数据',
+    tagType: hasValue(coreStats.value.book_request_count) ? 'success' : 'info',
+    note: '学生/教师荐购申请数',
+  },
+])
 
-const behaviorMetrics = [
-  { label: '续借次数', value: '214', note: '计算机类图书续借最多' },
-  { label: '荐购申请', value: '43', note: 'AI、考研、工程实践类占比高' },
-  { label: '教师借阅', value: '18%', note: '教师用户更偏好教材与专业参考书' },
-]
+const statCardSpan = computed(() => (statCards.value.length >= 5 ? 4 : 6))
+const popularBooks = computed(() => bookAnalysis.value.popular_books || [])
+const stockRiskBooks = computed(() => bookAnalysis.value.stock_risk_books || [])
 
-const aiSuggestions = [
-  '建议优先补采《算法导论》《数据库系统概念》《机器学习》，这些图书借阅热度高且库存低。',
-  'B201 自习室晚间使用率持续偏高，可考虑增加带电源座位或优化预约时段提示。',
-  '荐购内容集中在 AI 与工程实践方向，建议下月采购计划向应用型技术书籍倾斜。',
-]
+const seatInsight = computed(() => {
+  const seats = seatAnalysis.value.popular_seats || []
+  const rooms = seatAnalysis.value.popular_rooms || []
+  const hours = seatAnalysis.value.peak_hours || []
+  const preference = seatAnalysis.value.feature_preference || {}
 
-function generateReport() {
-  ElMessage.success(`${selectedMonth.value} 月度报告已使用 mock 数据刷新`)
+  return {
+    hotSeats: seats.length ? seats.slice(0, 2).map(item => item.seat_number).join('、') : '暂无数据',
+    hotRooms: rooms.length ? rooms.slice(0, 2).map(item => item.room_name).join('、') : '暂无数据',
+    peakHours: hours.length ? hours[0].label : '暂无数据',
+    featurePreference: hasValue(preference.with_power_count) || hasValue(preference.without_power_count)
+      ? `带电源座位预约占比 ${preference.with_power_ratio || 0}%`
+      : '暂无数据',
+  }
+})
+
+const behaviorMetrics = computed(() => {
+  const roleDistribution = userBehavior.value.role_distribution || []
+  const teacher = roleDistribution.find(item => item.role === 'teacher')
+
+  return [
+    {
+      label: '续借次数',
+      value: formatNumber(userBehavior.value.renew_count),
+      note: '当月借阅记录中的续借次数合计',
+    },
+    {
+      label: '荐购申请',
+      value: formatNumber(userBehavior.value.book_request_count),
+      note: '当月新增图书荐购申请',
+    },
+    {
+      label: '教师活跃占比',
+      value: `${teacher?.ratio || 0}%`,
+      note: '基于借阅、预约、荐购活跃用户计算',
+    },
+  ]
+})
+
+const aiSuggestions = computed(() => {
+  if (isFallbackData.value) {
+    return [
+      '当前接口请求失败，以下仅为前端演示建议，不代表真实 AI 分析结果。',
+      '恢复后端接口后，页面会自动展示数据库统计数据；本阶段仍不会调用真实 AI。',
+      '导出功能仍为占位按钮，后续阶段再单独接入。',
+    ]
+  }
+
+  const riskNames = stockRiskBooks.value.map(book => book.title).slice(0, 3).join('、')
+  const hotRoom = seatInsight.value.hotRooms
+
+  return [
+    riskNames ? `可优先关注 ${riskNames} 的补采计划，这些书借阅热度较高且库存偏低。` : '当前月份暂无断货风险图书，可继续观察热门图书趋势。',
+    hotRoom !== '暂无数据' ? `${hotRoom} 预约热度较高，可结合高峰时段优化座位开放策略。` : '当前月份暂无座位预约数据，座位运营建议暂不生成。',
+    '以上为前端占位运营建议，不是由真实 AI 生成。',
+  ]
+})
+
+async function generateReport() {
+  await loadMonthlyReport()
 }
 
 function createChart(el, options) {
@@ -274,22 +355,24 @@ function createChart(el, options) {
 }
 
 function initCharts() {
+  chartInstances.forEach(chart => chart.dispose())
+  chartInstances.length = 0
+
+  const categories = bookAnalysis.value.categories || []
+  const peakHours = seatAnalysis.value.peak_hours || []
+  const roleDistribution = userBehavior.value.role_distribution || []
+
   createChart(categoryChartRef.value, {
     color: ['#3366ff', '#059669', '#d97706', '#7c3aed', '#dc2626'],
     tooltip: { trigger: 'item' },
     legend: { bottom: 0, icon: 'circle' },
+    title: buildEmptyTitle(categories.length === 0),
     series: [{
       type: 'pie',
       radius: ['46%', '70%'],
       center: ['50%', '44%'],
       label: { formatter: '{b}\\n{d}%' },
-      data: [
-        { name: '计算机', value: 38 },
-        { name: '人工智能', value: 24 },
-        { name: '数据库', value: 14 },
-        { name: '软件工程', value: 13 },
-        { name: '其他', value: 11 },
-      ],
+      data: categories.map(item => ({ name: item.name, value: item.value })),
     }],
   })
 
@@ -297,13 +380,14 @@ function initCharts() {
     color: ['#3366ff', '#059669', '#d97706'],
     tooltip: { trigger: 'axis' },
     grid: { left: 36, right: 18, top: 24, bottom: 34 },
-    xAxis: { type: 'category', data: ['08-10', '10-12', '14-16', '16-18', '19-21'] },
+    title: buildEmptyTitle(peakHours.length === 0),
+    xAxis: { type: 'category', data: peakHours.map(item => item.label) },
     yAxis: { type: 'value' },
     series: [{
       name: '预约次数',
       type: 'bar',
       barWidth: 22,
-      data: [168, 246, 318, 402, 586],
+      data: peakHours.map(item => item.reservation_count),
       itemStyle: { borderRadius: [8, 8, 0, 0] },
     }],
   })
@@ -312,15 +396,13 @@ function initCharts() {
     color: ['#3366ff', '#059669'],
     tooltip: { trigger: 'item' },
     legend: { bottom: 0, icon: 'circle' },
+    title: buildEmptyTitle(roleDistribution.every(item => !item.count)),
     series: [{
       type: 'pie',
       radius: ['50%', '72%'],
       center: ['50%', '44%'],
       label: { formatter: '{b} {d}%' },
-      data: [
-        { name: '学生', value: 82 },
-        { name: '教师', value: 18 },
-      ],
+      data: roleDistribution.map(item => ({ name: item.name, value: item.count })),
     }],
   })
 }
@@ -331,14 +413,173 @@ function resizeCharts() {
 
 onMounted(async () => {
   await nextTick()
-  initCharts()
   window.addEventListener('resize', resizeCharts)
+  await loadMonthlyReport()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', resizeCharts)
   chartInstances.forEach(chart => chart.dispose())
 })
+
+async function loadMonthlyReport() {
+  loading.value = true
+  try {
+    const response = await reportApi.monthly(selectedMonth.value)
+    reportData.value = normalizeReport(response.data || createEmptyReport(selectedMonth.value))
+    await nextTick()
+    initCharts()
+    ElMessage.success(`${selectedMonth.value} 月度报告已加载真实统计数据`)
+  } catch (error) {
+    reportData.value = createDevFallbackMock(selectedMonth.value)
+    await nextTick()
+    initCharts()
+    ElMessage.warning('月度报告接口暂不可用，当前显示演示数据')
+  } finally {
+    loading.value = false
+  }
+}
+
+function getPreviousMonth() {
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+  firstDay.setMonth(firstDay.getMonth() - 1)
+  return `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}`
+}
+
+function createEmptyReport(month) {
+  return {
+    month,
+    range: { start: '', end: '' },
+    data_source: 'database',
+    is_mock: false,
+    core_stats: {
+      borrow_count: 0,
+      active_user_count: 0,
+      reservation_count: 0,
+      overdue_count: 0,
+      book_request_count: 0,
+    },
+    book_analysis: {
+      popular_books: [],
+      categories: [],
+      stock_risk_books: [],
+    },
+    seat_analysis: {
+      popular_seats: [],
+      popular_rooms: [],
+      peak_hours: [],
+      feature_preference: {
+        with_power_count: 0,
+        without_power_count: 0,
+        with_power_ratio: 0,
+        without_power_ratio: 0,
+      },
+    },
+    user_behavior: {
+      role_distribution: [
+        { role: 'student', name: '学生', count: 0, ratio: 0 },
+        { role: 'teacher', name: '教师', count: 0, ratio: 0 },
+      ],
+      renew_count: 0,
+      book_request_count: 0,
+      overdue_count: 0,
+    },
+  }
+}
+
+function normalizeReport(data) {
+  const empty = createEmptyReport(data.month || selectedMonth.value)
+  return {
+    ...empty,
+    ...data,
+    core_stats: { ...empty.core_stats, ...(data.core_stats || {}) },
+    book_analysis: { ...empty.book_analysis, ...(data.book_analysis || {}) },
+    seat_analysis: { ...empty.seat_analysis, ...(data.seat_analysis || {}) },
+    user_behavior: { ...empty.user_behavior, ...(data.user_behavior || {}) },
+  }
+}
+
+function createDevFallbackMock(month) {
+  const fallback = createEmptyReport(month)
+  return {
+    ...fallback,
+    data_source: 'devFallbackMock',
+    is_mock: true,
+    range: { start: `${month}-01`, end: `${month}-末` },
+    core_stats: {
+      borrow_count: 1286,
+      active_user_count: 842,
+      reservation_count: 2418,
+      overdue_count: 37,
+      book_request_count: 43,
+    },
+    book_analysis: {
+      popular_books: [
+        { title: '《算法导论》', author: 'Thomas H. Cormen', category: '计算机', borrow_count: 96, stock: 2 },
+        { title: '《人工智能》', author: 'Stuart Russell', category: '人工智能', borrow_count: 88, stock: 3 },
+        { title: '《计算机网络》', author: '谢希仁', category: '计算机', borrow_count: 83, stock: 4 },
+      ],
+      categories: [
+        { name: '计算机', value: 38 },
+        { name: '人工智能', value: 24 },
+        { name: '数据库', value: 14 },
+      ],
+      stock_risk_books: [
+        { title: '《算法导论》', stock: 2, borrow_count: 96, reason: '演示数据：借阅 96 次，当前库存 2 本' },
+        { title: '《数据库系统概念》', stock: 2, borrow_count: 76, reason: '演示数据：借阅 76 次，当前库存 2 本' },
+      ],
+    },
+    seat_analysis: {
+      popular_seats: [
+        { seat_number: 'B201-01', reservation_count: 128 },
+        { seat_number: 'B201-02', reservation_count: 117 },
+      ],
+      popular_rooms: [
+        { room_name: 'B201 自习室', reservation_count: 486 },
+      ],
+      peak_hours: [
+        { label: '19:00 - 21:00', reservation_count: 586 },
+        { label: '16:00 - 18:00', reservation_count: 402 },
+        { label: '14:00 - 16:00', reservation_count: 318 },
+      ],
+      feature_preference: {
+        with_power_count: 1644,
+        without_power_count: 774,
+        with_power_ratio: 68,
+        without_power_ratio: 32,
+      },
+    },
+    user_behavior: {
+      role_distribution: [
+        { role: 'student', name: '学生', count: 706, ratio: 82 },
+        { role: 'teacher', name: '教师', count: 136, ratio: 18 },
+      ],
+      renew_count: 214,
+      book_request_count: 43,
+      overdue_count: 37,
+    },
+  }
+}
+
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString('zh-CN')
+}
+
+function hasValue(value) {
+  return Number(value || 0) > 0
+}
+
+function buildEmptyTitle(isEmpty) {
+  return isEmpty
+    ? {
+        text: '暂无数据',
+        left: 'center',
+        top: '42%',
+        textStyle: { color: '#9aa5b5', fontSize: 14, fontWeight: 500 },
+      }
+    : undefined
+}
 </script>
 
 <style scoped>

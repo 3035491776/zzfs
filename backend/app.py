@@ -92,6 +92,12 @@ def _register_blueprints(app):
     except ImportError:
         pass
 
+    try:
+        from api.report_api import report_bp
+        app.register_blueprint(report_bp, url_prefix='/api/reports')
+    except ImportError:
+        pass
+
     # ---- 用户管理 ----
     try:
         from api.user_api import user_bp
