@@ -5,6 +5,7 @@ from datetime import datetime
 
 from flask import Blueprint, request
 
+from services.ai_service import generate_monthly_report_analysis
 from services.report_service import get_monthly_report
 from utils.jwt_utils import admin_required
 from utils.response import error, success
@@ -24,3 +25,26 @@ def monthly_report():
         return error(str(exc), code=400)
 
     return success(report)
+
+
+@report_bp.route('/monthly/ai-analysis', methods=['POST'])
+@admin_required
+def monthly_ai_analysis():
+    """基于月度真实统计数据生成 AI 运营分析。"""
+    data = request.get_json(silent=True) or {}
+    month = (data.get('month') or datetime.now().strftime('%Y-%m')).strip()
+
+    try:
+        report = get_monthly_report(month)
+        analysis = generate_monthly_report_analysis(report)
+    except ValueError as exc:
+        return error(str(exc), code=400)
+    except RuntimeError as exc:
+        return error(str(exc), code=503)
+
+    return success({
+        'month': month,
+        'analysis': analysis,
+        'data_source': 'database',
+        'is_mock': False,
+    })

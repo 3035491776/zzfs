@@ -46,6 +46,22 @@ RECOMMEND_PROMPT_TEMPLATE = """根据用户的阅读偏好和历史借阅记录�
 }}
 """
 
+MONTHLY_REPORT_ANALYSIS_SYSTEM_PROMPT = """你是智慧图书馆运营分析助手。
+
+请基于用户提供的月度运营数据生成一份专业、简洁、可执行的运营分析报告。
+必须遵守：
+1. 不要编造数据。
+2. 只能引用输入数据中存在的统计结果。
+3. 如果数据不足，请明确说明“本月数据不足”，并给出通用运营建议。
+4. 输出中文纯文本，结构清晰，语气专业。
+5. 按以下五个部分输出：
+   1. 本月运营概览
+   2. 图书资源分析
+   3. 座位空间分析
+   4. 用户服务分析
+   5. 下月优化建议
+"""
+
 
 def _call_deepseek(messages, stream=False):
     """调用 DeepSeek API (OpenAI 兼容模式)
@@ -80,6 +96,97 @@ def _call_deepseek(messages, stream=False):
             max_tokens=2000,
         )
         return response.choices[0].message.content
+
+
+def _compact_monthly_report_data(report_data):
+    """压缩月报统计数据，只保留 AI 分析需要的字段。"""
+    core_stats = report_data.get('core_stats') or {}
+    book_analysis = report_data.get('book_analysis') or {}
+    seat_analysis = report_data.get('seat_analysis') or {}
+    user_behavior = report_data.get('user_behavior') or {}
+
+    return {
+        'month': report_data.get('month'),
+        'range': report_data.get('range'),
+        'core_stats': {
+            'borrow_count': core_stats.get('borrow_count', 0),
+            'active_user_count': core_stats.get('active_user_count', 0),
+            'reservation_count': core_stats.get('reservation_count', 0),
+            'overdue_count': core_stats.get('overdue_count', 0),
+            'book_request_count': core_stats.get('book_request_count', 0),
+        },
+        'book_analysis': {
+            'popular_books': (book_analysis.get('popular_books') or [])[:10],
+            'categories': (book_analysis.get('categories') or [])[:8],
+            'stock_risk_books': (book_analysis.get('stock_risk_books') or [])[:5],
+        },
+        'seat_analysis': {
+            'popular_seats': (seat_analysis.get('popular_seats') or [])[:5],
+            'popular_rooms': (seat_analysis.get('popular_rooms') or [])[:5],
+            'peak_hours': (seat_analysis.get('peak_hours') or [])[:8],
+            'feature_preference': seat_analysis.get('feature_preference') or {},
+        },
+        'user_behavior': {
+            'role_distribution': user_behavior.get('role_distribution') or [],
+            'renew_count': user_behavior.get('renew_count', 0),
+            'book_request_count': user_behavior.get('book_request_count', 0),
+            'overdue_count': user_behavior.get('overdue_count', 0),
+        },
+    }
+
+
+def _is_monthly_report_data_empty(compact_data):
+    """判断月报统计是否基本为空，用于兜底提示数据不足。"""
+    core_stats = compact_data.get('core_stats') or {}
+    book_analysis = compact_data.get('book_analysis') or {}
+    seat_analysis = compact_data.get('seat_analysis') or {}
+    user_behavior = compact_data.get('user_behavior') or {}
+    feature_preference = seat_analysis.get('feature_preference') or {}
+
+    core_empty = all(int(value or 0) == 0 for value in core_stats.values())
+    books_empty = not book_analysis.get('popular_books') and not book_analysis.get('categories')
+    seats_empty = not seat_analysis.get('popular_seats') and not seat_analysis.get('popular_rooms') and not seat_analysis.get('peak_hours')
+    preference_empty = all(float(value or 0) == 0 for value in feature_preference.values())
+    behavior_empty = int(user_behavior.get('renew_count') or 0) == 0 and int(user_behavior.get('book_request_count') or 0) == 0
+
+    return core_empty and books_empty and seats_empty and preference_empty and behavior_empty
+
+
+def generate_monthly_report_analysis(report_data):
+    """基于真实月报统计数据生成 AI 运营分析。
+
+    Args:
+        report_data: report_service.get_monthly_report 返回的数据
+
+    Returns:
+        str: AI 运营分析文本
+
+    Raises:
+        RuntimeError: AI 服务调用失败
+    """
+    compact_data = _compact_monthly_report_data(report_data)
+    prompt = """请基于以下月度运营数据生成运营分析报告。
+
+月度运营数据 JSON：
+{report_json}
+
+再次强调：不要编造数据；如果数组为空或核心指标为 0，请明确说明本月数据不足。""".format(
+        report_json=json.dumps(compact_data, ensure_ascii=False, indent=2)
+    )
+
+    messages = [
+        {'role': 'system', 'content': MONTHLY_REPORT_ANALYSIS_SYSTEM_PROMPT},
+        {'role': 'user', 'content': prompt},
+    ]
+
+    try:
+        analysis = _call_deepseek(messages)
+        if _is_monthly_report_data_empty(compact_data) and '本月数据不足' not in analysis:
+            analysis = f'本月数据不足。\n\n{analysis}'
+        return analysis
+    except Exception as e:
+        logger.error(f'月度报告 AI 分析失败: {e}')
+        raise RuntimeError('AI 分析服务暂时不可用，请稍后重试') from e
 
 
 def chat_with_ai(user_id, user_message):

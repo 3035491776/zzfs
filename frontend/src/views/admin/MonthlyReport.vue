@@ -200,15 +200,34 @@
             <div class="panel-heading">
               <div>
                 <h3>AI 运营建议</h3>
-                <p>当前为前端占位建议，暂未调用真实 AI。</p>
+                <p>基于当前月份真实统计数据生成，不影响原始统计展示。</p>
               </div>
-              <span class="panel-mark">AI</span>
+              <div class="ai-heading-actions">
+                <el-button type="primary" plain :loading="aiLoading" @click="generateAiAnalysis">
+                  <el-icon><MagicStick /></el-icon>
+                  <span>生成 AI 分析</span>
+                </el-button>
+                <span class="panel-mark">AI</span>
+              </div>
             </div>
           </template>
 
-          <div class="ai-summary">
-            <el-tag type="warning" effect="light">占位建议</el-tag>
-            <p v-for="tip in aiSuggestions" :key="tip">{{ tip }}</p>
+          <div v-loading="aiLoading" class="ai-summary">
+            <el-alert
+              v-if="aiError"
+              :title="aiError"
+              type="warning"
+              show-icon
+              :closable="false"
+              class="ai-alert"
+            />
+            <el-tag :type="aiAnalysis ? 'success' : 'warning'" effect="light">
+              {{ aiAnalysis ? 'AI 分析' : '默认提示' }}
+            </el-tag>
+            <p v-if="aiAnalysis" class="ai-report-text">{{ aiAnalysis }}</p>
+            <template v-else>
+              <p v-for="tip in defaultAiSuggestions" :key="tip">{{ tip }}</p>
+            </template>
           </div>
         </el-card>
       </el-col>
@@ -224,6 +243,9 @@ import { reportApi } from '../../api/report'
 
 const selectedMonth = ref(getPreviousMonth())
 const loading = ref(false)
+const aiLoading = ref(false)
+const aiAnalysis = ref('')
+const aiError = ref('')
 const reportData = ref(createEmptyReport(selectedMonth.value))
 const categoryChartRef = ref(null)
 const seatChartRef = ref(null)
@@ -238,9 +260,9 @@ const userBehavior = computed(() => reportData.value.user_behavior || {})
 
 const toolbarDescription = computed(() => {
   if (isFallbackData.value) {
-    return '接口请求失败，当前显示 devFallbackMock 演示数据；暂未接入真实 AI 与导出功能。'
+    return '统计接口请求失败，当前显示 devFallbackMock 演示数据；AI 分析以服务端真实统计为准，导出功能暂未开放。'
   }
-  return `${reportData.value.range?.start || selectedMonth.value} 至 ${reportData.value.range?.end || selectedMonth.value} 的真实数据库统计；暂未接入真实 AI 与导出功能。`
+  return `${reportData.value.range?.start || selectedMonth.value} 至 ${reportData.value.range?.end || selectedMonth.value} 的真实数据库统计；可按需生成 AI 运营分析，导出功能暂未开放。`
 })
 
 const statCards = computed(() => [
@@ -324,7 +346,7 @@ const behaviorMetrics = computed(() => {
   ]
 })
 
-const aiSuggestions = computed(() => {
+const defaultAiSuggestions = computed(() => {
   if (isFallbackData.value) {
     return [
       '当前接口请求失败，以下仅为前端演示建议，不代表真实 AI 分析结果。',
@@ -345,6 +367,28 @@ const aiSuggestions = computed(() => {
 
 async function generateReport() {
   await loadMonthlyReport()
+}
+
+async function generateAiAnalysis() {
+  aiLoading.value = true
+  aiError.value = ''
+
+  try {
+    const response = await reportApi.aiAnalysis(selectedMonth.value)
+    aiAnalysis.value = response.data?.analysis || ''
+    if (!aiAnalysis.value) {
+      aiError.value = 'AI 未返回分析内容，已保留默认提示。'
+      ElMessage.warning(aiError.value)
+      return
+    }
+    ElMessage.success(`${selectedMonth.value} AI 运营分析已生成`)
+  } catch (error) {
+    aiAnalysis.value = ''
+    aiError.value = error.response?.data?.message || 'AI 分析暂时不可用，已保留当前统计数据和默认提示。'
+    ElMessage.warning(aiError.value)
+  } finally {
+    aiLoading.value = false
+  }
 }
 
 function createChart(el, options) {
@@ -424,6 +468,8 @@ onUnmounted(() => {
 
 async function loadMonthlyReport() {
   loading.value = true
+  aiAnalysis.value = ''
+  aiError.value = ''
   try {
     const response = await reportApi.monthly(selectedMonth.value)
     reportData.value = normalizeReport(response.data || createEmptyReport(selectedMonth.value))
@@ -735,6 +781,13 @@ function buildEmptyTitle(isEmpty) {
   gap: 18px;
 }
 
+.ai-heading-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
 .panel-heading h3 {
   color: var(--library-text);
   font-size: 17px;
@@ -892,6 +945,10 @@ function buildEmptyTitle(isEmpty) {
   gap: 14px;
 }
 
+.ai-alert {
+  border-radius: 12px;
+}
+
 .ai-summary p {
   padding: 15px 16px;
   border: 1px solid var(--library-border);
@@ -900,5 +957,9 @@ function buildEmptyTitle(isEmpty) {
   background: #fbfcfe;
   font-size: 14px;
   line-height: 1.7;
+}
+
+.ai-report-text {
+  white-space: pre-line;
 }
 </style>
