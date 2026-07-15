@@ -114,7 +114,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, provide, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
 import { notificationApi } from '../../api/auth'
@@ -141,6 +141,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const activeMenu = computed(() => route.path)
 const unreadCount = ref(0)
+provide('unreadCount', unreadCount)
 let timer = null
 
 const portalRole = computed(() => {

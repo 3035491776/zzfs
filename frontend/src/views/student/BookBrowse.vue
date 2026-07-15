@@ -1,7 +1,7 @@
 <template>
   <div class="book-browse">
     <section class="stats-grid" aria-label="图书馆数据概览">
-      <article class="stat-card">
+      <article class="stat-card stat-card-books">
         <div class="stat-icon">
           <el-icon><Collection /></el-icon>
         </div>
@@ -15,7 +15,7 @@
         </div>
       </article>
 
-      <article class="stat-card">
+      <article class="stat-card stat-card-borrows">
         <div class="stat-icon">
           <el-icon><TrendCharts /></el-icon>
         </div>
@@ -29,7 +29,7 @@
         </div>
       </article>
 
-      <article class="stat-card">
+      <article class="stat-card stat-card-seats">
         <div class="stat-icon">
           <el-icon><OfficeBuilding /></el-icon>
         </div>
@@ -43,14 +43,14 @@
         </div>
       </article>
 
-      <article class="stat-card">
+      <article class="stat-card stat-card-notifications">
         <div class="stat-icon">
           <el-icon><Message /></el-icon>
         </div>
         <div class="stat-content">
           <span class="stat-label">未读消息</span>
           <div class="stat-value">
-            <strong>1</strong>
+            <strong>{{ unreadCount }}</strong>
             <span>条</span>
           </div>
           <small>点击侧栏查看详情</small>
@@ -79,6 +79,7 @@
           clearable
           @change="fetchData"
         >
+          <el-option label="全部分类" :value="0" />
           <el-option
             v-for="c in categories"
             :key="c.id"
@@ -88,10 +89,19 @@
         </el-select>
       </div>
 
+      <div class="table-heading">
+        <div>
+          <h2>馆藏列表</h2>
+          <p>根据书名、作者或分类筛选馆藏资源</p>
+        </div>
+        <span>共 {{ total }} 本</span>
+      </div>
+
       <div class="table-wrap">
         <el-table
           :data="books"
           v-loading="loading"
+          stripe
           class="books-table"
           empty-text="暂无馆藏图书"
         >
@@ -110,16 +120,25 @@
           </el-table-column>
           <el-table-column prop="stock" label="库存" min-width="100">
             <template #default="{ row }">
-              <span :class="['stock-value', { empty: row.stock <= 0 }]">
-                {{ row.stock }}
-              </span>
+              <div class="stock-cell">
+                <span :class="['stock-value', { empty: row.stock <= 0, low: isLowStock(row.stock) }]">
+                  {{ row.stock }}
+                </span>
+                <el-tooltip v-if="isLowStock(row.stock)" content="库存紧张" placement="top">
+                  <el-tag class="low-stock-tag" size="small" effect="plain">库存紧张</el-tag>
+                </el-tooltip>
+              </div>
             </template>
           </el-table-column>
           <el-table-column prop="location" label="位置" min-width="150">
             <template #default="{ row }">
               <span class="location-cell">
                 <el-icon><Location /></el-icon>
-                {{ row.location }}
+                <span class="location-copy">
+                  <span v-for="(line, index) in displayLocation(row.location).split(' · ')" :key="index">
+                    {{ line }}
+                  </span>
+                </span>
               </span>
             </template>
           </el-table-column>
@@ -132,7 +151,7 @@
                 :disabled="row.stock <= 0"
                 @click="borrow(row)"
               >
-                {{ row.stock > 0 ? '借阅' : '暂无库存' }}
+                {{ row.stock > 0 ? '借阅' : '已借完' }}
               </el-button>
             </template>
           </el-table-column>
@@ -155,7 +174,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { inject, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { bookApi, categoryApi, borrowApi } from '../../api/auth'
 
@@ -166,16 +185,43 @@ const categoryId = ref(0)
 const page = ref(1)
 const total = ref(0)
 const loading = ref(false)
+const unreadCount = inject('unreadCount', ref(0))
+
+const examMonthLocations = {
+  '考试月演示专区-计算机': '三楼 B 区 · 计算机书架',
+  '考试月演示专区-数学': '三楼考研专区 · 数学资料架',
+  '考试月演示专区-英语': '二楼 C 区 · 英语资料架',
+  '考试月演示专区-自然科学': '二楼 A 区 · 自然科学书架',
+  '考试月演示专区-文学': '二楼 B 区 · 文学书架',
+  '考试月演示专区-历史': '二楼 C 区 · 历史书架',
+  '考试月演示专区-哲学': '二楼 D 区 · 哲学书架',
+  '考试月演示专区-经济': '三楼 A 区 · 经济管理书架',
+}
 
 onMounted(() => { fetchData(); categoryApi.list().then(r => categories.value = r.data.list) })
 
 async function fetchData() {
   loading.value = true
   try {
-    const r = await bookApi.list({ page: page.value, search: search.value, category_id: categoryId.value })
+    const r = await bookApi.list({ page: page.value, search: search.value, category_id: categoryId.value || 0 })
     books.value = r.data.list; total.value = r.data.total
   } catch (e) { /* */ }
   loading.value = false
+}
+
+function isLowStock(stock) {
+  return stock > 0 && stock < 3
+}
+
+function displayLocation(location) {
+  if (examMonthLocations[location]) return examMonthLocations[location]
+
+  if (location?.startsWith('考试月演示专区-')) {
+    const subject = location.replace('考试月演示专区-', '')
+    return `三楼 B 区 · ${subject}书架`
+  }
+
+  return location
 }
 
 async function borrow(row) {
@@ -232,6 +278,21 @@ async function borrow(row) {
 
 .stat-icon .el-icon {
   font-size: 26px;
+}
+
+.stat-card-borrows .stat-icon {
+  color: #21835b;
+  background: #e8f7ef;
+}
+
+.stat-card-seats .stat-icon {
+  color: #137f98;
+  background: #e7f7fa;
+}
+
+.stat-card-notifications .stat-icon {
+  color: #c56b18;
+  background: #fff3e5;
 }
 
 .stat-content {
@@ -338,6 +399,39 @@ async function borrow(row) {
   font-size: 14px;
 }
 
+.table-heading {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #e8edf4;
+  background: #fcfdff;
+}
+
+.table-heading h2 {
+  margin: 0;
+  color: #24334d;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.table-heading p {
+  margin: 5px 0 0;
+  color: #7b899d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.table-heading > span {
+  flex: 0 0 auto;
+  color: var(--library-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
@@ -346,6 +440,14 @@ async function borrow(row) {
 .books-table {
   width: 100%;
   min-width: 820px;
+}
+
+.books-table :deep(.el-table__body tr > td.el-table__cell) {
+  transition: background-color 160ms ease;
+}
+
+.books-table :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background: #f2f6ff !important;
 }
 
 .book-title {
@@ -372,11 +474,34 @@ async function borrow(row) {
   color: #9aa6b6;
 }
 
+.stock-value.low {
+  color: #d97821;
+}
+
+.stock-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.low-stock-tag {
+  border-color: #f3c990;
+  border-radius: 6px;
+  color: #b96012;
+  background: #fff7eb;
+}
+
 .location-cell {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: #62738a;
+}
+
+.location-copy {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.45;
 }
 
 .location-cell .el-icon {
@@ -435,6 +560,37 @@ async function borrow(row) {
 
   .stat-icon .el-icon {
     font-size: 22px;
+  }
+}
+
+@media (max-width: 720px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-bar,
+  .table-heading,
+  .table-footer {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+  }
+
+  .search-input,
+  .category-select {
+    width: 100%;
+    min-width: 0;
+    flex-basis: auto;
+  }
+
+  .table-heading {
+    min-height: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 }
 </style>
