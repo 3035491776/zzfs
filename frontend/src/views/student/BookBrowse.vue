@@ -113,7 +113,7 @@
           <el-table-column prop="author" label="作者" min-width="130" />
           <el-table-column prop="category_name" label="分类" min-width="130">
             <template #default="{ row }">
-              <el-tag class="category-tag" effect="plain">
+              <el-tag :class="['category-tag', categoryTagClass(row.category_name)]" effect="plain">
                 {{ row.category_name }}
               </el-tag>
             </template>
@@ -198,6 +198,18 @@ const examMonthLocations = {
   '考试月演示专区-经济': '三楼 A 区 · 经济管理书架',
 }
 
+const categoryTagClasses = {
+  '自然科学': 'category-natural',
+  '计算机': 'category-computing',
+  '数学': 'category-mathematics',
+  '英语': 'category-english',
+  '专业课': 'category-professional',
+  '经济': 'category-economics',
+  '哲学': 'category-philosophy',
+  '历史': 'category-history',
+  '文学': 'category-literature',
+}
+
 onMounted(() => { fetchData(); categoryApi.list().then(r => categories.value = r.data.list) })
 
 async function fetchData() {
@@ -213,6 +225,10 @@ function isLowStock(stock) {
   return stock > 0 && stock < 3
 }
 
+function categoryTagClass(categoryName) {
+  return categoryTagClasses[categoryName] || 'category-default'
+}
+
 function displayLocation(location) {
   if (examMonthLocations[location]) return examMonthLocations[location]
 
@@ -225,6 +241,8 @@ function displayLocation(location) {
 }
 
 async function borrow(row) {
+  if (row.stock <= 0) return
+
   try {
     await borrowApi.apply(row.id)
     ElMessage.success(`《${row.title}》借阅申请已提交，等待审核`)
@@ -447,7 +465,8 @@ async function borrow(row) {
 }
 
 .books-table :deep(.el-table__body tr:hover > td.el-table__cell) {
-  background: #f2f6ff !important;
+  background: rgba(51, 102, 255, 0.04) !important;
+  box-shadow: inset 0 1px 0 rgba(51, 102, 255, 0.1), inset 0 -1px 0 rgba(51, 102, 255, 0.1);
 }
 
 .book-title {
@@ -458,11 +477,65 @@ async function borrow(row) {
 .category-tag {
   height: 28px;
   padding: 0 12px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 999px;
   color: #52627a;
   background: #f1f4f8;
   line-height: 28px;
+}
+
+.category-tag.category-natural {
+  border-color: #c9dcf6;
+  color: #3e6598;
+  background: #edf5ff;
+}
+
+.category-tag.category-computing {
+  border-color: #cdd7fa;
+  color: #4a5eaa;
+  background: #f0f3ff;
+}
+
+.category-tag.category-mathematics {
+  border-color: #bfe5e8;
+  color: #287783;
+  background: #ebf9fa;
+}
+
+.category-tag.category-english {
+  border-color: #c6e5d2;
+  color: #39745a;
+  background: #edf8f1;
+}
+
+.category-tag.category-professional {
+  border-color: #d8d0f5;
+  color: #6257a2;
+  background: #f4f1ff;
+}
+
+.category-tag.category-economics {
+  border-color: #f0d1b7;
+  color: #ad6841;
+  background: #fff4ec;
+}
+
+.category-tag.category-philosophy {
+  border-color: #e0ccec;
+  color: #765a95;
+  background: #f9f1fc;
+}
+
+.category-tag.category-history {
+  border-color: #e8d9b9;
+  color: #92744b;
+  background: #faf6ed;
+}
+
+.category-tag.category-literature {
+  border-color: #edd1de;
+  color: #a2647c;
+  background: #fff2f6;
 }
 
 .stock-value {

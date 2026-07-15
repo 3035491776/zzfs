@@ -451,11 +451,11 @@ select {
   padding: 24px;
   overflow: auto;
   background:
-    linear-gradient(180deg, rgba(250, 252, 255, 0.34) 0%, rgba(245, 249, 254, 0.3) 48%, rgba(241, 247, 253, 0.38) 100%),
-    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 28%),
-    radial-gradient(circle at 86% 8%, rgba(213, 227, 249, 0.1), rgba(213, 227, 249, 0) 34%),
-    linear-gradient(90deg, rgba(232, 241, 253, 0.12) 0%, rgba(255, 255, 255, 0.18) 42%, rgba(255, 255, 255, 0.36) 100%),
-    url("./assets/student-library-atrium-bg.png") center center / cover no-repeat;
+    linear-gradient(180deg, rgba(250, 252, 255, 0.16) 0%, rgba(245, 249, 254, 0.12) 48%, rgba(241, 247, 253, 0.2) 100%),
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 28%),
+    radial-gradient(circle at 86% 8%, rgba(194, 215, 244, 0.11), rgba(194, 215, 244, 0) 34%),
+    linear-gradient(90deg, rgba(232, 241, 253, 0.05) 0%, rgba(255, 255, 255, 0.07) 42%, rgba(255, 255, 255, 0.14) 100%),
+    url("./assets/student-library-atrium-bg.png") 58% center / cover no-repeat;
   background-color: #f5f8fc;
 }
 
