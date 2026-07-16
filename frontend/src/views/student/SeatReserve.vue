@@ -78,7 +78,7 @@
           </template>
           <el-form label-width="100px" size="default">
             <el-form-item label="损坏座位" required>
-              <el-select v-model="repairSeatId" placeholder="请选择座位" filterable style="width:100%">
+              <el-select v-model="repairSeatId" placeholder="请选择损坏座位" filterable clearable style="width:100%">
                 <el-option v-for="s in allSeats" :key="s.id"
                   :label="`${s.seat_number} (${s.room_name} F${s.floor})`"
                   :value="s.id" />
@@ -89,7 +89,7 @@
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="submitRepair" :loading="repairSubmitting">提交报修</el-button>
-              <el-button @click="repairSeatId=0;repairDesc=''">重置</el-button>
+              <el-button @click="repairSeatId=null;repairDesc=''">重置</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -109,7 +109,9 @@
             <el-table-column prop="status_text" label="状态" width="90">
               <template #default="{row}"><el-tag :type="row.status==='resolved'?'success':row.status==='rejected'?'danger':row.status==='fixing'?'warning':'info'" size="small">{{row.status_text}}</el-tag></template>
             </el-table-column>
-            <el-table-column prop="review_comment" label="处理意见" min-width="120" show-overflow-tooltip />
+            <el-table-column label="处理意见" min-width="120" show-overflow-tooltip>
+              <template #default="{ row }">{{ formatEmpty(row.review_comment) }}</template>
+            </el-table-column>
             <el-table-column prop="create_time" label="报修时间" width="160" />
           </el-table>
           <div class="pagination-row">
@@ -176,7 +178,7 @@ async function checkin(row) { try { await seatApi.checkin(row.id); ElMessage.suc
 async function cancel(row) { try { await seatApi.cancel(row.id); ElMessage.success('已取消'); fetchMyReservations(); fetchSeats() } catch (e) { /* handled */ } }
 
 // ---- 座位报修 ----
-const repairSeatId = ref(0)
+const repairSeatId = ref(null)
 const repairDesc = ref('')
 const repairSubmitting = ref(false)
 const myRepairs = ref([])
@@ -185,15 +187,24 @@ const repairTotal = ref(0)
 const repairLoading = ref(false)
 
 async function submitRepair() {
-  if (!repairSeatId.value) { ElMessage.warning('请选择要报修的座位'); return }
+  if (!hasSelectedRepairSeat()) { ElMessage.warning('请选择损坏座位'); return }
   if (!repairDesc.value.trim()) { ElMessage.warning('请描述故障情况'); return }
   repairSubmitting.value = true
   try {
     await seatRepairApi.submit({ seat_id: repairSeatId.value, description: repairDesc.value })
     ElMessage.success('报修已提交，管理员会尽快处理')
-    repairSeatId.value = 0; repairDesc.value = ''; fetchMyRepairs()
+    repairSeatId.value = null; repairDesc.value = ''; fetchMyRepairs()
   } catch (e) { /* handled */ }
   repairSubmitting.value = false
+}
+
+function hasSelectedRepairSeat() {
+  return ![0, '0', null, undefined, ''].includes(repairSeatId.value)
+}
+
+function formatEmpty(value) {
+  const content = String(value ?? '').trim()
+  return !content || content === '..' ? '—' : content
 }
 
 async function fetchMyRepairs() {
@@ -233,7 +244,7 @@ async function fetchMyRepairs() {
 }
 
 .seat-reserve-page :deep(.room-tabs > .el-tabs__header) {
-  margin: 0 0 24px;
+  margin: 0 0 34px;
   border: 0;
 }
 
@@ -241,6 +252,10 @@ async function fetchMyRepairs() {
   display: flex;
   gap: 10px;
   border: 0;
+}
+
+.seat-reserve-page :deep(.room-tabs > .el-tabs__header .el-tabs__nav-scroll) {
+  padding-top: 8px;
 }
 
 .seat-reserve-page :deep(.room-tabs > .el-tabs__header .el-tabs__item) {
@@ -297,6 +312,7 @@ async function fetchMyRepairs() {
 }
 
 .seat-reserve-page :deep(.seat-card.available:hover) {
+  border-color: #b9cdec;
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(36, 59, 92, 0.09);
 }
@@ -355,9 +371,18 @@ async function fetchMyRepairs() {
 }
 
 .seat-reserve-page :deep(.seat-card__action.is-disabled) {
-  color: #fff;
-  background: #a8c2f8;
-  border-color: #a8c2f8;
+  border-color: #dce3eb;
+  color: #98a4b3;
+  background: #f0f3f7;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.seat-reserve-page :deep(.seat-card__action.is-disabled:hover),
+.seat-reserve-page :deep(.seat-card__action.is-disabled:focus) {
+  border-color: #dce3eb;
+  color: #98a4b3;
+  background: #f0f3f7;
 }
 
 .reservations-card {
@@ -418,6 +443,15 @@ async function fetchMyRepairs() {
 .seat-reserve-page :deep(.repair-card .el-input__wrapper),
 .seat-reserve-page :deep(.repair-card .el-textarea__inner) {
   border-radius: 10px;
+}
+
+.repair-records :deep(.el-table__body tr > td.el-table__cell) {
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.repair-records :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background: rgba(51, 102, 255, 0.04) !important;
+  box-shadow: inset 0 1px 0 rgba(51, 102, 255, 0.1), inset 0 -1px 0 rgba(51, 102, 255, 0.1);
 }
 
 .pagination-row {
