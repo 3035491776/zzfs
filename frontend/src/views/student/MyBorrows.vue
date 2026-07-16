@@ -4,31 +4,37 @@
       <el-radio-group v-model="status" class="borrow-tabs" @change="fetchData">
         <el-radio-button value="">
           全部
-          <span class="tab-count">
+          <span class="tab-count count-all">
             {{ counts.pending + counts.borrowed + counts.overdue + counts.returned + counts.rejected }}
           </span>
         </el-radio-button>
         <el-radio-button value="pending">
           待审核
-          <span class="tab-count">{{ counts.pending }}</span>
+          <span :class="['tab-count', tabCountClass('pending')]">{{ counts.pending }}</span>
         </el-radio-button>
         <el-radio-button value="borrowed">
           在借
-          <span class="tab-count">{{ counts.borrowed }}</span>
+          <span :class="['tab-count', tabCountClass('borrowed')]">{{ counts.borrowed }}</span>
         </el-radio-button>
         <el-radio-button value="overdue">
           逾期
-          <span class="tab-count">{{ counts.overdue }}</span>
+          <span :class="['tab-count', tabCountClass('overdue')]">{{ counts.overdue }}</span>
         </el-radio-button>
         <el-radio-button value="returned">
           已归还
-          <span class="tab-count">{{ counts.returned }}</span>
+          <span :class="['tab-count', tabCountClass('returned')]">{{ counts.returned }}</span>
         </el-radio-button>
       </el-radio-group>
     </div>
 
     <div class="table-wrap">
-      <el-table :data="borrows" class="borrows-table" empty-text="暂无借阅记录">
+      <el-table :data="borrows" class="borrows-table">
+        <template #empty>
+          <div class="borrow-empty">
+            <strong>暂无借阅记录</strong>
+            <span>可以前往图书浏览页查找并借阅馆藏图书</span>
+          </div>
+        </template>
         <el-table-column prop="book_title" label="图书" min-width="260">
           <template #default="{ row }">
             <span class="book-title">{{ row.book_title }}</span>
@@ -36,7 +42,7 @@
         </el-table-column>
         <el-table-column prop="status_text" label="状态" min-width="120">
           <template #default="{ row }">
-            <el-tag :class="['status-tag', `status-${row.status}`]" effect="plain">
+            <el-tag :class="['status-tag', statusTagClass(row.status)]" effect="plain">
               {{ row.status_text }}
             </el-tag>
           </template>
@@ -57,13 +63,15 @@
         <el-table-column label="操作" width="120" align="right">
           <template #default="{ row }">
             <el-button
-              v-if="row.status === 'borrowed' || row.status === 'overdue'"
+              v-if="row.status === 'borrowed'"
               class="renew-button"
               size="small"
               @click="renew(row)"
             >
               续借
             </el-button>
+            <span v-else-if="row.status === 'overdue'" class="overdue-action">请尽快归还</span>
+            <span v-else-if="row.status === 'pending'" class="pending-action">等待审核</span>
             <span v-else class="no-action">—</span>
           </template>
         </el-table-column>
@@ -95,12 +103,27 @@ const total = ref(0)
 const status = ref('')
 const counts = reactive({ pending: 0, borrowed: 0, overdue: 0, returned: 0, rejected: 0 })
 
+const statusTagClasses = {
+  pending: 'status-pending',
+  borrowed: 'status-borrowed',
+  overdue: 'status-overdue',
+  returned: 'status-returned',
+}
+
 onMounted(() => fetchData())
 
 async function fetchData() {
   const r = await borrowApi.myBorrows({ page: page.value, status: status.value })
   borrows.value = r.data.list; total.value = r.data.total
   if (r.data.counts) Object.assign(counts, r.data.counts)
+}
+
+function statusTagClass(statusValue) {
+  return statusTagClasses[statusValue] || 'status-default'
+}
+
+function tabCountClass(statusValue) {
+  return counts[statusValue] > 0 ? `count-${statusValue}` : 'count-zero'
 }
 
 async function renew(row) {
@@ -110,6 +133,9 @@ async function renew(row) {
 
 <style scoped>
 .borrow-card {
+  display: flex;
+  min-height: calc(100vh - 120px);
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--library-border);
   border-radius: 16px;
@@ -163,14 +189,40 @@ async function renew(row) {
 .tab-count {
   color: #9aa7b8;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.borrow-tabs :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) .tab-count {
-  color: #7d9cff;
+.tab-count.count-zero {
+  color: #aeb8c7;
+}
+
+.tab-count.count-all {
+  color: #61718a;
+}
+
+.tab-count.count-pending {
+  color: #64748b;
+}
+
+.tab-count.count-borrowed {
+  color: #3d66c6;
+}
+
+.tab-count.count-overdue {
+  color: #cf4f55;
+}
+
+.tab-count.count-returned {
+  color: #24835d;
+}
+
+.borrow-tabs :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) .tab-count.count-zero {
+  color: #8ea0bd;
 }
 
 .table-wrap {
+  min-height: 300px;
+  flex: 1;
   width: 100%;
   overflow-x: auto;
 }
@@ -178,6 +230,35 @@ async function renew(row) {
 .borrows-table {
   width: 100%;
   min-width: 940px;
+}
+
+.borrows-table :deep(.el-table__body tr > td.el-table__cell) {
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.borrows-table :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background: rgba(51, 102, 255, 0.04) !important;
+  box-shadow: inset 0 1px 0 rgba(51, 102, 255, 0.1), inset 0 -1px 0 rgba(51, 102, 255, 0.1);
+}
+
+.borrow-empty {
+  display: flex;
+  min-height: 210px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: #718096;
+}
+
+.borrow-empty strong {
+  color: #344054;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.borrow-empty span {
+  font-size: 13px;
 }
 
 .book-title {
@@ -188,7 +269,7 @@ async function renew(row) {
 .status-tag {
   height: 28px;
   padding: 0 12px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
@@ -196,26 +277,31 @@ async function renew(row) {
 }
 
 .status-returned {
+  border-color: #bfe4d0;
   color: #059669;
   background: #e8f8f1;
 }
 
 .status-borrowed {
+  border-color: #c6d6ff;
   color: var(--library-primary);
   background: #ebf1ff;
 }
 
 .status-overdue {
+  border-color: #f4c4c7;
   color: #dc2626;
   background: #feecec;
 }
 
 .status-pending {
-  color: #d97706;
-  background: #fff6dd;
+  border-color: #d9e0e9;
+  color: #64748b;
+  background: #f3f6f9;
 }
 
-.status-rejected {
+.status-default {
+  border-color: #dbe2eb;
   color: #64748b;
   background: #f1f4f8;
 }
@@ -247,8 +333,20 @@ async function renew(row) {
   color: #a7b1bf;
 }
 
+.pending-action {
+  color: #8491a3;
+  font-size: 13px;
+}
+
+.overdue-action {
+  color: #d55358;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .table-footer {
   display: flex;
+  margin-top: auto;
   min-height: 72px;
   align-items: center;
   justify-content: space-between;
