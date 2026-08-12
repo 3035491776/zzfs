@@ -28,3 +28,6 @@ openai==1.6.1
 
 # 异步支持
 eventlet==0.34.3
+
+# 环境变量管理
+python-dotenv

@@ -15,6 +15,10 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+frontend/.env
+frontend/.env.*
+backend/.env
+backend/.env.*
 
 # IDE and operating system
 .idea/
