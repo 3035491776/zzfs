@@ -5,13 +5,19 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request
 from models.book import Book
 from models.category import Category
-from models.borrow import Borrow, update_overdue_borrows
+from models.borrow import Borrow
 from models.user import User
 from models.seat import Seat
 from models.reservation import Reservation
 from extensions import db
 from utils.response import success
 from utils.jwt_utils import login_required, admin_required
+from services.snapshot_view_service import (
+    dashboard_snapshot_stats,
+    latest_category_chart,
+    latest_popular_books,
+    monthly_borrow_trend,
+)
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -20,7 +26,23 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @login_required
 def stats():
     """核心指标汇总"""
-    update_overdue_borrows()
+    snapshot_data = dashboard_snapshot_stats()
+    if snapshot_data is not None:
+        total_books = Book.query.filter_by(is_deleted=False).count()
+        total_students = User.query.filter_by(role='student').count()
+        total_teachers = User.query.filter_by(role='teacher').count()
+        available_seats = Seat.query.filter_by(status='available').count()
+        today_reservations = Reservation.query.filter_by(
+            date=datetime.now().date()).count()
+        return success({
+            'total_books': total_books,
+            'total_students': total_students,
+            'total_teachers': total_teachers,
+            'available_seats': available_seats,
+            'today_reservations': today_reservations,
+            'supplemental_source': 'realtime_compatibility',
+            **snapshot_data,
+        })
 
     total_books = Book.query.filter_by(is_deleted=False).count()
     total_stock = db.session.query(db.func.sum(Book.stock)).filter(
@@ -43,6 +65,12 @@ def stats():
         'total_teachers': total_teachers,
         'available_seats': available_seats,
         'today_reservations': today_reservations,
+        'active_user_count': 0,
+        'seat_utilization_rate': None,
+        'source': 'realtime_fallback',
+        'calculation_version': None,
+        'generated_time': None,
+        'job_run_id': None,
     })
 
 
@@ -50,6 +78,10 @@ def stats():
 @admin_required
 def borrow_trend():
     """借阅趋势 — 按月份统计（最近12个月）"""
+    snapshot_data = monthly_borrow_trend(limit=12)
+    if snapshot_data is not None:
+        return success(snapshot_data)
+
     now = datetime.now()
     trend = []
 
@@ -71,13 +103,17 @@ def borrow_trend():
             'count': count,
         })
 
-    return success({'trend': trend})
+    return success({'trend': trend, 'source': 'realtime_fallback'})
 
 
 @dashboard_bp.route('/category-chart', methods=['GET'])
 @admin_required
 def category_chart():
     """分类借阅占比"""
+    snapshot_data = latest_category_chart()
+    if snapshot_data is not None:
+        return success(snapshot_data)
+
     categories = Category.query.filter_by(is_deleted=False).all()
     chart_data = []
 
@@ -91,13 +127,17 @@ def category_chart():
                 'value': count,
             })
 
-    return success({'chart': chart_data})
+    return success({'chart': chart_data, 'source': 'realtime_fallback'})
 
 
 @dashboard_bp.route('/popular-books', methods=['GET'])
 @admin_required
 def popular_books():
     """热门图书 TOP10 — 按借阅次数"""
+    snapshot_data = latest_popular_books(limit=10)
+    if snapshot_data is not None:
+        return success(snapshot_data)
+
     top = db.session.query(
         Book.id, Book.title, Book.author,
         db.func.count(Borrow.id).label('borrow_count')
@@ -114,6 +154,7 @@ def popular_books():
             'author': b.author,
             'borrow_count': b.borrow_count,
         } for b in top],
+        'source': 'realtime_fallback',
     })
 
 
@@ -128,12 +169,24 @@ def seat_usage():
 
     usage_rate = round((occupied / total * 100), 1) if total > 0 else 0
 
+    snapshot_data = dashboard_snapshot_stats()
     return success({
         'total': total,
         'available': available,
         'occupied': occupied,
         'maintenance': maintenance,
-        'usage_rate': usage_rate,
+        'usage_rate': (
+            snapshot_data['seat_utilization_rate']
+            if snapshot_data is not None and snapshot_data['seat_utilization_rate'] is not None
+            else usage_rate
+        ),
+        'source': snapshot_data['source'] if snapshot_data is not None else 'realtime_fallback',
+        'calculation_version': (
+            snapshot_data['calculation_version'] if snapshot_data is not None else None
+        ),
+        'generated_time': snapshot_data['generated_time'] if snapshot_data is not None else None,
+        'job_run_id': snapshot_data['job_run_id'] if snapshot_data is not None else None,
+        'supplemental_source': 'realtime_seat_counts',
     })
 
 

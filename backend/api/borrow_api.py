@@ -11,6 +11,11 @@ from config import Config
 from utils.response import success, error, paginate as paginate_resp
 from utils.jwt_utils import login_required, admin_required
 from services.notification_service import create_notification
+from services.borrow_renewal_service import (
+    RenewalPersistenceError,
+    RenewalRuleError,
+    renew_borrow_record,
+)
 
 borrow_bp = Blueprint('borrow', __name__)
 
@@ -239,21 +244,19 @@ def return_borrow(borrow_id):
 @login_required
 def renew_borrow(borrow_id):
     """续借（仅本人可操作）"""
-    borrow = Borrow.query.get(borrow_id)
-    if not borrow:
-        return error('借阅记录不存在', code=404)
-    if borrow.user_id != g.current_user['user_id']:
-        return error('无权操作此记录', code=403)
-    if borrow.status not in ('borrowed', 'overdue'):
-        return error('只有处于在借/逾期的图书可续借')
+    try:
+        result = renew_borrow_record(
+            borrow_id,
+            g.current_user['user_id'],
+            max_renew_count=Config.MAX_RENEW_COUNT,
+            borrow_days=Config.BORROW_DAYS,
+        )
+    except RenewalRuleError as exc:
+        return error(str(exc), code=exc.status_code)
+    except RenewalPersistenceError:
+        return error('续借失败，请稍后重试', code=500)
 
-    if borrow.renew_count >= Config.MAX_RENEW_COUNT:
-        return error(f'续借次数已达上限（{Config.MAX_RENEW_COUNT}次）')
-
-    borrow.renew_count += 1
-    borrow.status = 'borrowed'  # 逾期续借后恢复为在借
-    borrow.due_time = datetime.now() + timedelta(days=Config.BORROW_DAYS)
-    db.session.commit()
+    borrow = result.borrow
 
     return success({
         'borrow': borrow.to_dict(),

@@ -9,7 +9,9 @@ Flask + CORS + JWT + RESTful API
 from flask import Flask
 from flask_cors import CORS
 from config import Config
-from extensions import db
+from extensions import db, migrate
+from seat_capacity_command import register_seat_capacity_command
+from metric_command import register_metric_command
 from utils.response import success
 
 
@@ -134,23 +136,24 @@ def _register_blueprints(app):
         pass
 
 
-def _create_tables(app):
-    """创建数据库表 — 仅导入已存在的模型"""
-    with app.app_context():
-        import models
-        db.create_all()
-
-
-def create_app():
+def create_app(test_config=None):
     """应用工厂"""
     app = Flask(__name__)
     app.config.from_object(Config)
+    if test_config:
+        app.config.update(test_config)
 
     # 启用 CORS
     CORS(app, origins=Config.CORS_ORIGINS, supports_credentials=True)
 
     # 初始化数据库
     db.init_app(app)
+
+    # 显式加载全部模型，供 Alembic metadata 使用。
+    import models  # noqa: F401
+    migrate.init_app(app, db)
+    register_seat_capacity_command(app)
+    register_metric_command(app)
 
     # 注册蓝图
     _register_blueprints(app)
@@ -159,9 +162,6 @@ def create_app():
     @app.route('/api/health')
     def health():
         return success({'status': 'ok', 'version': '2.0.0'}, '智慧图书馆管理系统运行正常')
-
-    # 创建数据表
-    _create_tables(app)
 
     return app
 

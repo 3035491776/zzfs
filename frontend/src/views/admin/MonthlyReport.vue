@@ -2,11 +2,12 @@
   <div v-loading="loading" class="monthly-report-page">
     <el-card shadow="never" class="report-toolbar">
       <div class="toolbar-copy">
-        <el-tag :type="isFallbackData ? 'warning' : 'success'" effect="plain">
-          {{ isFallbackData ? '演示数据' : '真实数据' }}
+        <el-tag :type="isUnavailableData ? 'danger' : (isFallbackData ? 'warning' : 'success')" effect="plain">
+          {{ isUnavailableData ? 'Snapshot 不可用' : (isFallbackData ? '演示数据' : (isSnapshotData ? 'V2 Snapshot' : '真实数据')) }}
         </el-tag>
         <div>
           <h2>月度运营报告</h2>
+          <span class="print-month">报告月份：{{ selectedMonth }}</span>
           <p>{{ toolbarDescription }}</p>
         </div>
       </div>
@@ -24,9 +25,9 @@
           <el-icon><DataAnalysis /></el-icon>
           <span>生成报告</span>
         </el-button>
-        <el-button class="export-button" disabled title="导出功能暂未开放，当前仅为前端占位">
+        <el-button class="export-button" :disabled="loading" title="使用浏览器打印功能，可在打印窗口选择另存为 PDF" @click="handlePrintReport">
           <el-icon><Download /></el-icon>
-          <span>导出报告（占位）</span>
+          <span>导出 PDF</span>
         </el-button>
       </div>
     </el-card>
@@ -74,11 +75,13 @@
               </template>
             </el-table-column>
             <el-table-column prop="borrow_count" label="借阅" width="100" />
-            <el-table-column prop="stock" label="库存" width="90" />
+            <el-table-column prop="stock" label="库存" width="90">
+              <template #default="{ row }">{{ row.stock == null ? '未快照' : row.stock }}</template>
+            </el-table-column>
             <el-table-column label="状态" width="110">
               <template #default="{ row }">
-                <el-tag :type="row.stock <= 2 ? 'danger' : 'success'" effect="light">
-                  {{ row.stock <= 2 ? '需关注' : '稳定' }}
+                <el-tag :type="row.stock == null ? 'info' : (row.stock <= 2 ? 'danger' : 'success')" effect="light">
+                  {{ row.stock == null ? '未快照' : (row.stock <= 2 ? '需关注' : '稳定') }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -203,7 +206,7 @@
                 <p>基于当前月份真实统计数据生成，不影响原始统计展示。</p>
               </div>
               <div class="ai-heading-actions">
-                <el-button type="primary" plain :loading="aiLoading" @click="generateAiAnalysis">
+                <el-button type="primary" :loading="aiLoading" @click="generateAiAnalysis">
                   <el-icon><MagicStick /></el-icon>
                   <span>生成 AI 分析</span>
                 </el-button>
@@ -246,6 +249,7 @@ const loading = ref(false)
 const aiLoading = ref(false)
 const aiAnalysis = ref('')
 const aiError = ref('')
+const hasLoadedReport = ref(false)
 const reportData = ref(createEmptyReport(selectedMonth.value))
 const categoryChartRef = ref(null)
 const seatChartRef = ref(null)
@@ -253,6 +257,8 @@ const userChartRef = ref(null)
 const chartInstances = []
 
 const isFallbackData = computed(() => reportData.value.is_mock === true)
+const isSnapshotData = computed(() => reportData.value.source === 'snapshot')
+const isUnavailableData = computed(() => reportData.value.source === 'snapshot_unavailable')
 const coreStats = computed(() => reportData.value.core_stats || {})
 const bookAnalysis = computed(() => reportData.value.book_analysis || {})
 const seatAnalysis = computed(() => reportData.value.seat_analysis || {})
@@ -260,9 +266,18 @@ const userBehavior = computed(() => reportData.value.user_behavior || {})
 
 const toolbarDescription = computed(() => {
   if (isFallbackData.value) {
-    return '统计接口请求失败，当前显示 devFallbackMock 演示数据；AI 分析以服务端真实统计为准，导出功能暂未开放。'
+    return '统计接口请求失败，当前显示 devFallbackMock 演示数据；AI 分析以服务端真实统计为准，可使用浏览器打印导出 PDF。'
   }
-  return `${reportData.value.range?.start || selectedMonth.value} 至 ${reportData.value.range?.end || selectedMonth.value} 的真实数据库统计；可按需生成 AI 运营分析，导出功能暂未开放。`
+  if (isUnavailableData.value) {
+    return `${selectedMonth.value} 尚未发布 V2 Snapshot；页面不会使用实时统计或演示数据冒充历史报告。`
+  }
+  if (isSnapshotData.value) {
+    const generated = reportData.value.generated_time
+      ? new Date(reportData.value.generated_time).toLocaleString('zh-CN')
+      : '未知时间'
+    return `${reportData.value.range?.start || selectedMonth.value} 至 ${reportData.value.range?.end || selectedMonth.value} 的 V2 Snapshot；生成时间 ${generated}，JobRun #${reportData.value.job_run_id || '—'}。`
+  }
+  return `${reportData.value.range?.start || selectedMonth.value} 至 ${reportData.value.range?.end || selectedMonth.value} 的真实数据库统计；可按需生成 AI 运营分析，并通过浏览器打印导出 PDF。`
 })
 
 const statCards = computed(() => [
@@ -351,7 +366,7 @@ const defaultAiSuggestions = computed(() => {
     return [
       '当前接口请求失败，以下仅为前端演示建议，不代表真实 AI 分析结果。',
       '恢复后端接口后，页面会自动展示数据库统计数据；本阶段仍不会调用真实 AI。',
-      '导出功能仍为占位按钮，后续阶段再单独接入。',
+      '可使用导出 PDF 按钮打开浏览器打印窗口，并选择另存为 PDF。',
     ]
   }
 
@@ -367,6 +382,18 @@ const defaultAiSuggestions = computed(() => {
 
 async function generateReport() {
   await loadMonthlyReport()
+}
+
+async function handlePrintReport() {
+  if (loading.value) return
+  if (!hasLoadedReport.value) {
+    ElMessage.warning('请先生成报告')
+    return
+  }
+
+  await nextTick()
+  resizeCharts()
+  window.print()
 }
 
 async function generateAiAnalysis() {
@@ -473,14 +500,21 @@ async function loadMonthlyReport() {
   try {
     const response = await reportApi.monthly(selectedMonth.value)
     reportData.value = normalizeReport(response.data || createEmptyReport(selectedMonth.value))
+    hasLoadedReport.value = true
     await nextTick()
     initCharts()
-    ElMessage.success(`${selectedMonth.value} 月度报告已加载真实统计数据`)
+    ElMessage.success(`${selectedMonth.value} 月度报告已加载 V2 Snapshot`)
   } catch (error) {
-    reportData.value = createDevFallbackMock(selectedMonth.value)
+    reportData.value = {
+      ...createEmptyReport(selectedMonth.value),
+      source: 'snapshot_unavailable',
+      data_source: 'snapshot_unavailable',
+      snapshot_error: error.response?.data?.message || 'Snapshot 暂不可用',
+    }
+    hasLoadedReport.value = true
     await nextTick()
     initCharts()
-    ElMessage.warning('月度报告接口暂不可用，当前显示演示数据')
+    ElMessage.warning(reportData.value.snapshot_error)
   } finally {
     loading.value = false
   }
@@ -498,6 +532,7 @@ function createEmptyReport(month) {
     month,
     range: { start: '', end: '' },
     data_source: 'database',
+    source: '',
     is_mock: false,
     core_stats: {
       borrow_count: 0,
@@ -678,6 +713,10 @@ function buildEmptyTitle(isEmpty) {
   color: var(--library-text);
   font-size: 21px;
   font-weight: 700;
+}
+
+.print-month {
+  display: none;
 }
 
 .toolbar-copy p,
@@ -961,5 +1000,215 @@ function buildEmptyTitle(isEmpty) {
 
 .ai-report-text {
   white-space: pre-line;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  :global(html),
+  :global(body) {
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  :global(body),
+  .monthly-report-page {
+    color: #111827;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  :global(.student-sidebar),
+  :global(.student-header),
+  :global(.toolbar-actions),
+  :global(.ai-heading-actions .el-button),
+  :global(.el-message),
+  :global(.el-loading-mask),
+  .toolbar-copy :deep(.el-tag),
+  .ai-alert {
+    display: none !important;
+  }
+
+  :global(.student-shell),
+  :global(.student-workspace),
+  :global(.student-main),
+  :global(.admin-main) {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .monthly-report-page {
+    width: 100% !important;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+  }
+
+  .report-toolbar,
+  .stat-card,
+  .panel-card,
+  .risk-item,
+  .seat-insights section,
+  .behavior-item,
+  .ai-summary p {
+    border: 1px solid #d8dee8 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-toolbar {
+    margin-bottom: 12px;
+  }
+
+  .report-toolbar :deep(.el-card__body) {
+    display: block;
+    min-height: 0;
+    padding: 0 0 12px;
+  }
+
+  .toolbar-copy {
+    display: block;
+  }
+
+  .toolbar-copy h2 {
+    color: #111827;
+    font-size: 24px;
+    line-height: 1.3;
+  }
+
+  .print-month {
+    display: block;
+    margin-top: 8px;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .toolbar-copy p {
+    margin-top: 6px;
+    color: #4b5563;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .stat-grid,
+  .report-grid {
+    display: block !important;
+    margin-top: 12px;
+  }
+
+  .stat-grid :deep(.el-col),
+  .report-grid :deep(.el-col) {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    margin-bottom: 12px;
+  }
+
+  .stat-card :deep(.el-card__body) {
+    min-height: 0;
+    padding: 14px 16px;
+  }
+
+  .stat-card strong {
+    margin-top: 10px;
+    font-size: 24px;
+  }
+
+  .panel-card :deep(.el-card__header) {
+    min-height: 0;
+    padding: 12px 16px;
+  }
+
+  .panel-card :deep(.el-card__body) {
+    padding: 12px 16px 16px;
+  }
+
+  .panel-heading,
+  .seat-analysis,
+  .behavior-layout {
+    align-items: flex-start;
+  }
+
+  .panel-heading h3 {
+    color: #111827;
+    font-size: 16px;
+  }
+
+  .panel-heading p {
+    color: #4b5563;
+  }
+
+  .panel-mark {
+    border: 1px solid #d8dee8;
+    background: #f8fafc !important;
+  }
+
+  .report-table {
+    border-radius: 8px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-table :deep(.el-table__inner-wrapper),
+  .report-table :deep(.el-table__body-wrapper),
+  .report-table :deep(.el-scrollbar),
+  .report-table :deep(.el-scrollbar__wrap) {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .chart-shell {
+    height: 260px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .chart-shell--compact {
+    height: 220px;
+  }
+
+  .seat-analysis,
+  .behavior-layout {
+    display: block;
+  }
+
+  .seat-chart-wrap,
+  .seat-insights,
+  .behavior-layout .chart-shell,
+  .behavior-metrics {
+    width: 100%;
+  }
+
+  .seat-insights,
+  .behavior-metrics {
+    margin-top: 12px;
+  }
+
+  .ai-card :deep(.el-card__body) {
+    min-height: 0;
+  }
+
+  .ai-summary p,
+  .risk-item,
+  .seat-insights section,
+  .behavior-item {
+    padding: 12px;
+  }
 }
 </style>

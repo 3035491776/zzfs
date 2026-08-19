@@ -8,7 +8,7 @@
             <span class="stat-label">{{ card.label }}</span>
           </div>
           <strong class="stat-value">{{ card.value }}</strong>
-          <span class="stat-note">实时统计</span>
+          <span class="stat-note">{{ card.note }}</span>
         </el-card>
       </el-col>
     </el-row>
@@ -87,10 +87,10 @@ import * as echarts from 'echarts'
 import { dashboardApi } from '../../api/auth'
 
 const cards = reactive([
-  { label: '图书种类', value: 0 },
-  { label: '在借图书', value: 0 },
-  { label: '逾期图书', value: 0 },
-  { label: '可用座位', value: 0 },
+  { label: '馆藏册数', value: 0, note: '等待 V2 数据' },
+  { label: '周期借阅', value: 0, note: '等待 V2 数据' },
+  { label: '期末逾期', value: 0, note: '等待 V2 数据' },
+  { label: '座位利用率', value: '—', note: '等待 V2 数据' },
 ])
 
 const popularBooks = ref([])
@@ -102,10 +102,16 @@ onMounted(async () => {
   // Stats
   const stats = await dashboardApi.stats()
   const s = stats.data
-  cards[0].value = s.total_books
+  const sourceNote = s.source === 'snapshot'
+    ? `V2 Snapshot · ${String(s.period_start || '').slice(0, 10)}`
+    : '实时兼容数据'
+  cards[0].value = s.total_stock
   cards[1].value = s.total_borrowed
   cards[2].value = s.total_overdue
-  cards[3].value = s.available_seats
+  cards[3].value = s.seat_utilization_rate == null
+    ? '—'
+    : `${Number(s.seat_utilization_rate).toFixed(1)}%`
+  cards.forEach(card => { card.note = sourceNote })
 
   // Trend chart
   const trend = await dashboardApi.borrowTrend()

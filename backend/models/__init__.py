@@ -22,6 +22,12 @@ from models.access_log import AccessLog
 from models.book_request import BookRequest
 from models.seat_repair import SeatRepair
 
+# Level 3: V2 分析任务、快照与历史事实
+from models.metric_job_run import MetricJobRun
+from models.metric_snapshot import MetricSnapshot
+from models.seat_capacity_snapshot import SeatCapacitySnapshot
+from models.borrow_due_change import BorrowDueChange
+
 __all__ = [
     'User',
     'Category',
@@ -35,4 +41,8 @@ __all__ = [
     'SmsLog',
     'BookRequest',
     'SeatRepair',
+    'MetricJobRun',
+    'MetricSnapshot',
+    'SeatCapacitySnapshot',
+    'BorrowDueChange',
 ]

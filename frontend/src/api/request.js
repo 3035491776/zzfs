@@ -36,6 +36,11 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
+      const responseSource = error.response.data?.data?.source
+      if (responseSource === 'snapshot_unavailable') {
+        return Promise.reject(error)
+      }
+
       const { status } = error.response
       if (status === 401) {
         localStorage.removeItem('token')

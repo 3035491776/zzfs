@@ -10,6 +10,15 @@ PROJECT_ROOT = os.path.dirname(BASE_DIR)
 load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
 
+def _csv_values(name):
+    """Parse a comma-separated environment setting into stable values."""
+    return tuple(
+        value.strip()
+        for value in os.environ.get(name, '').split(',')
+        if value.strip()
+    )
+
+
 class Config:
     """基础配置"""
     # Flask
@@ -29,6 +38,13 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
+
+    # Capacity capture is write-disabled unless the actual database is allow-listed.
+    CAPACITY_CAPTURE_ALLOWED_DATABASES = _csv_values(
+        'CAPACITY_CAPTURE_ALLOWED_DATABASES'
+    )
+    # Metric jobs are also write-disabled unless the actual database is allow-listed.
+    METRIC_RUN_ALLOWED_DATABASES = _csv_values('METRIC_RUN_ALLOWED_DATABASES')
 
     # JWT 配置
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'change-me-in-production')

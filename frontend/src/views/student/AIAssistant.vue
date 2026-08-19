@@ -36,6 +36,16 @@
               <div class="msg-content thinking"><i></i><i></i><i></i></div>
             </div>
           </div>
+          <div class="context-status-bar" v-if="messages.length > 0">
+            <div class="status-info">
+              <span class="status-label">上下文进度</span>
+              <span class="status-detail">{{ contextStatus.detail }}</span>
+            </div>
+            <div class="status-progress-wrap">
+              <div class="status-progress" :style="{ width: contextStatus.percent + '%' }" :class="contextStatus.level"></div>
+            </div>
+            <span class="status-percent">{{ contextStatus.percent }}%</span>
+          </div>
           <div class="chat-input">
             <el-input v-model="input" placeholder="输入您的问题..." @keyup.enter="sendMsg" />
             <el-button type="primary" @click="sendMsg" :loading="loading" :disabled="loading">
@@ -93,7 +103,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { aiApi, borrowApi } from '../../api/auth'
 import { useUserStore } from '../../store/user'
@@ -116,6 +126,24 @@ const quickQuestions = [
 const dialogVisible = ref(false)
 const selectedBook = ref(null)
 const borrowing = ref(false)
+
+const CONTEXT_MAX_MESSAGES = 50
+const contextStatus = computed(() => {
+  const count = messages.value.length
+  const raw = Math.min(count / CONTEXT_MAX_MESSAGES, 1)
+  const percent = Math.round(raw * 100)
+  let level = 'low'
+  if (raw >= 0.8) level = 'high'
+  else if (raw >= 0.5) level = 'mid'
+
+  const userTurns = messages.value.filter(m => m.role === 'user').length
+  const tokenEstimate = messages.value.reduce((sum, m) => sum + (m.content?.length || 0), 0)
+
+  let detail = `${count} 条消息 · ${userTurns} 轮对话`
+  if (tokenEstimate > 2000) detail += ` · ~${Math.round(tokenEstimate / 1000)}k 字符`
+
+  return { percent, level, detail }
+})
 
 onMounted(async () => {
   restoreChatHistory()
@@ -577,6 +605,86 @@ async function handleBorrow() {
   background: #fff;
   border-top: 1px solid var(--border-color);
 }
+
+/* ---- 上下文进度状态栏 ---- */
+.context-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  background: #fafbfd;
+  border-top: 1px solid #edf1f7;
+  font-size: 12px;
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.status-label {
+  color: #6b7d99;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-detail {
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-progress-wrap {
+  flex: 1;
+  height: 4px;
+  background: #e5eaf2;
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 40px;
+}
+
+.status-progress {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.45s ease;
+}
+
+.status-progress.low {
+  background: linear-gradient(90deg, #22c58b, #3dd68c);
+}
+
+.status-progress.mid {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.status-progress.high {
+  background: linear-gradient(90deg, #f97316, #ef4444);
+}
+
+.status-percent {
+  flex-shrink: 0;
+  width: 36px;
+  text-align: right;
+  color: #6b7d99;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .context-status-bar {
+    padding: 8px 14px;
+    gap: 7px;
+  }
+
+  .status-detail {
+    display: none;
+  }
+}
+/* ---- 状态栏结束 ---- */
 
 .chat-input :deep(.el-input) {
   flex: 1;
